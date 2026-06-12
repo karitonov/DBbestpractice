@@ -80,10 +80,8 @@ Infrastructure/
 │   │   ├── SqliteConnectionFactory.cs     SQLite 実装（internal sealed）
 │   │   └── PostgreSqlConnectionFactory.cs PostgreSQL 実装（internal sealed）
 │   └── Sessions/
-│       ├── DbSession.cs                   ADO.NET 同期セッション
-│       ├── DbSessionAsync.cs              ADO.NET 非同期セッション
-│       ├── DbSessionDataTable.cs          DataTable 戻り値版（同期）
-│       └── DbSessionDataTableAsync.cs     DataTable 戻り値版（非同期）
+│       ├── IDbSession.cs                  全操作インターフェース（public）
+│       └── DbSession.cs                   sync・async・DataTable を統合した実装（internal sealed）
 └── Repositories/
     ├── AdoNet/                            ADO.NET による実装
     ├── Dapper/                            Dapper による実装
@@ -188,6 +186,67 @@ IDbConnectionFactory（インターフェース）
 ```
 
 呼び出し側（Repository）は `IDbConnectionFactory.CreateConnection()` を呼ぶだけで、どの DB かを知らずに接続を取得できる。DB 切り替えは DI の登録を変えるだけで済む。
+
+### `IDbSession` インターフェースと Unit of Work パターン
+
+```csharp
+public interface IDbSession : IAsyncDisposable, IDisposable
+{
+    void Open();
+    IReadOnlyList<T> Query<T>(...);
+    void Execute(...);
+    void BeginTransaction(...);
+    void Commit();
+    void Rollback();
+    void ExecuteInTransaction(Action work, ...);
+    // ...
+}
+```
+
+`IDbSession` は EF Core の `DbContext` に相当する **Unit of Work（作業単位）** の抽象。
+1 つのビジネス処理（複数の SQL）をひとまとめに扱い、コミット or ロールバックをワンセットで管理する。
+
+- Repository のコンストラクターに `IDbSession` を注入することで、テスト時にモックへ差し替えられる
+- `internal sealed class DbSession` が実装。外から直接 `new DbSession()` はさせない
+
+### トランザクション分離レベル（`IsolationLevel`）
+
+```csharp
+void ExecuteInTransaction(
+    Action work,
+    IsolationLevel isolationLevel = IsolationLevel.ReadCommitted);
+```
+
+`IsolationLevel` は「複数のトランザクションが同時に走ったとき、互いにどこまで影響を受けるか」を制御する列挙型（`System.Data.IsolationLevel`）。
+
+| レベル | 防げる問題 | 説明 |
+|---|---|---|
+| `ReadUncommitted` | なし | コミット前のデータも読める。最速だが危険 |
+| **`ReadCommitted`** | ダーティリード | **コミット済みのデータのみ読む。多くの DB のデフォルト** |
+| `RepeatableRead` | ダーティリード・反復不能読み取り | トランザクション中に同じ行を 2 回読むと同じ結果になる |
+| `Serializable` | 上記すべて + ファントムリード | 完全な分離。最も安全だが最も遅い |
+
+**3 つの問題：**
+
+```
+ダーティリード：    他のトランザクションの未コミット変更を読んでしまう
+反復不能読み取り：  同じ行を 2 回 SELECT したら値が変わっていた
+ファントムリード：  同じ条件で 2 回 SELECT したら行数が変わっていた
+```
+
+`= IsolationLevel.ReadCommitted` はデフォルト引数。省略時は `ReadCommitted` が使われ、
+明示的に変えたいときだけ指定する：
+
+```csharp
+// 省略 → ReadCommitted
+session.ExecuteInTransaction(() => { ... });
+
+// 厳密な一貫性が必要な場合
+session.ExecuteInTransaction(() => { ... }, IsolationLevel.Serializable);
+```
+
+`ReadCommitted` を既定値にしているのは、SQLite・PostgreSQL ともにデフォルトがこのレベルで、
+一般的な業務処理（参照 + 更新が混在）に適したバランスだから。
 
 ---
 

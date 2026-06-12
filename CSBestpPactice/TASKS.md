@@ -4,6 +4,17 @@
 - ✅ 完了
 - 🔄 作業中
 - ⬜ 未着手
+- 🔀 方針変更
+
+---
+
+## 方針変更履歴
+
+| # | 変更内容 | 理由 |
+|---|---|---|
+| 1 | `IRepository<T>` と `IRepositoryAsync<T>` を分離 | sync / async で別インターフェースにすることで必要な方だけ実装できる |
+| 2 | `DbSession` 4クラス → 1クラスに統合 | sync・async・DataTable の責務はすべて「DBとのセッション管理」で一致。`EF Core の DbContext` と同様に同期・非同期を同一クラスに持つ設計に変更 |
+| 3 | `IDbSession` インターフェースを追加 | Repository コンストラクターへの注入・テスト時のモック差し替えを可能にするため |
 
 ---
 
@@ -24,10 +35,9 @@
 - ✅ `IDbConnectionFactory` インターフェース
 - ✅ `SqliteConnectionFactory`
 - ✅ `PostgreSqlConnectionFactory`
-- ✅ `DbSession`（同期）
-- ✅ `DbSessionAsync`（非同期）
-- ✅ `DbSessionDataTable`（DataTable 同期）
-- ✅ `DbSessionDataTableAsync`（DataTable 非同期）
+- 🔀 `DbSession` 4クラス → `IDbSession` + `DbSession` 1クラスに統合（方針変更 #2・#3）
+- ✅ `IDbSession`（全操作のインターフェース）
+- ✅ `DbSession`（sync・async・DataTable を統合した実装）
 - ⬜ `DbParam`
 - ⬜ `DataTableExtensions`
 - ⬜ `Repositories/AdoNet/ProductRepository`
