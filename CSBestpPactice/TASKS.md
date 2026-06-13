@@ -38,8 +38,8 @@
 - 🔀 `DbSession` 4クラス → `IDbSession` + `DbSession` 1クラスに統合（方針変更 #2・#3）
 - ✅ `IDbSession`（全操作のインターフェース）
 - ✅ `DbSession`（sync・async・DataTable を統合した実装）
-- ⬜ `DbParam`
-- ⬜ `DataTableExtensions`
+- ✅ `DbParam`
+- ✅ `DataTableExtensions`
 - ⬜ `Repositories/AdoNet/ProductRepository`
 - ⬜ `Repositories/Dapper/ProductRepository`
 - ⬜ `Repositories/EfCore/AppDbContext`

@@ -248,6 +248,93 @@ session.ExecuteInTransaction(() => { ... }, IsolationLevel.Serializable);
 `ReadCommitted` を既定値にしているのは、SQLite・PostgreSQL ともにデフォルトがこのレベルで、
 一般的な業務処理（参照 + 更新が混在）に適したバランスだから。
 
+### 拡張メソッド（`DataTableExtensions`）
+
+```csharp
+internal static class DataTableExtensions          // ① static クラス
+{
+    public static IReadOnlyList<T> ToList<T>(
+        this DataTable dataTable,                  // ② 第一引数に this
+        Func<DataRow, T> map)                      // ③ 通常の引数
+    {
+        var list = new List<T>(dataTable.Rows.Count);
+        foreach (DataRow row in dataTable.Rows)
+            list.Add(map(row));
+        return list;
+    }
+}
+```
+
+既存クラスを変更せずにメソッドを追加したかのように呼べる構文。3 条件を満たすと拡張メソッドになる：
+
+| 条件 | 内容 |
+|---|---|
+| `static class` | 拡張メソッドを格納するクラスは static |
+| `this T` | 第一引数の `this` でレシーバー型を指定 |
+| 呼び出し | インスタンスメソッドと同じ構文で呼べる |
+
+LINQ（`Where` / `Select` / `FirstOrDefault` など）もすべて拡張メソッドとして実装されている。
+
+```csharp
+// DataTable のメソッドとして呼べる
+var products = table.ToList(row => new Product
+{
+    Id   = Guid.Parse(row.Field<string>("Id")!),
+    Name = row.Field<string>("Name")!,
+});
+```
+
+`row.Field<T>("列名")` は .NET 標準の拡張メソッド（`System.Data` 名前空間）。
+`row["Id"]` より型安全で、nullable 列も `Field<string?>` のように扱える。
+
+### `new List<T>(capacity)` — 初期容量の指定
+
+```csharp
+var list = new List<T>(dataTable.Rows.Count);
+```
+
+`List<T>` は内部配列が不足すると自動で 2 倍に拡張する（リアロケーション）。
+件数が事前にわかる場合は初期容量を渡すことで、リアロケーションのコストをゼロにできる。
+
+### `params` とタプル型（`DbParam`）
+
+```csharp
+public static Action<DbCommand> Of(params (string Name, object? Value)[] parameters)
+```
+
+**`params`** — 引数を可変長で受け取る修飾子。呼び出し側は配列を意識せず列挙できる：
+
+```csharp
+// 配列を明示せず、そのまま並べて渡せる
+DbParam.Of(("@Name", "foo"), ("@Id", id.ToString()))
+```
+
+**タプル型 `(string Name, object? Value)`** — 名前付きタプル。`Tuple<string, object?>` より
+簡潔に書けて、`item.Name` / `item.Value` と名前でアクセスできる。
+
+### `DBNull.Value` — null と DB NULL の変換
+
+```csharp
+param.Value = value ?? DBNull.Value;
+```
+
+ADO.NET では C# の `null` をそのままパラメーターに渡すと例外になる。
+DB の `NULL` を表すには `DBNull.Value`（専用のシングルトン）を使う必要がある。
+`??`（null 合体演算子）で `null` のときだけ `DBNull.Value` に差し替えている。
+
+### `cmd.CreateParameter()` — プロバイダー非依存のパラメーター生成
+
+```csharp
+var param = cmd.CreateParameter();
+param.ParameterName = name;
+param.Value = value ?? DBNull.Value;
+cmd.Parameters.Add(param);
+```
+
+`new SqliteParameter(...)` や `new NpgsqlParameter(...)` を直接書くと、そのプロバイダーに依存したコードになる。
+`DbCommand.CreateParameter()` を使うと、コマンドが内部で適切な型のパラメーターを生成するため、
+SQLite・PostgreSQL どちらでも同じコードが動く。
+
 ---
 
 ## DI アプローチ比較
