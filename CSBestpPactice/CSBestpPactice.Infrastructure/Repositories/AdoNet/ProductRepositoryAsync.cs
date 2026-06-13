@@ -6,29 +6,29 @@ using System.Data.Common;
 
 namespace CSBestpPactice.Infrastructure.Repositories.AdoNet;
 
-internal sealed class ProductRepository : IProductRepository
+internal sealed class ProductRepositoryAsync : IProductRepositoryAsync
 {
     private readonly IDbSession _session;
 
-    public ProductRepository(IDbSession session)
+    public ProductRepositoryAsync(IDbSession session)
     {
         _session = session;
     }
 
-    public IReadOnlyList<Product> GetAll()
+    public async Task<IReadOnlyList<Product>> GetAllAsync()
     {
         var sql = "SELECT Id, Name, Description, UnitPrice, IsFeatured FROM Products";
-        return _session.Query(sql, Map);
+        return await _session.QueryAsync(sql, Map);
     }
 
-    public Product? GetById(Guid id)
+    public async Task<Product?> GetByIdAsync(Guid id)
     {
         var sql = "SELECT Id, Name, Description, UnitPrice, IsFeatured FROM Products WHERE Id = @Id";
         var parameters = DbParam.Of(("@Id", id.ToString()));
-        return _session.QuerySingleOrDefault(sql, Map, parameters);
+        return await _session.QuerySingleOrDefaultAsync(sql, Map, parameters);
     }
 
-    public void Add(Product entity)
+    public async Task AddAsync(Product entity)
     {
         var sql = "INSERT INTO Products (Id, Name, Description, UnitPrice, IsFeatured) VALUES (@Id, @Name, @Description, @UnitPrice, @IsFeatured)";
         var parameters = DbParam.Of(
@@ -38,10 +38,10 @@ internal sealed class ProductRepository : IProductRepository
             ("@UnitPrice", entity.UnitPrice),
             ("@IsFeatured", entity.IsFeatured)
         );
-        _session.Execute(sql, parameters);
+        await _session.ExecuteAsync(sql, parameters);
     }
 
-    public void Update(Product entity)
+    public async Task UpdateAsync(Product entity)
     {
         var sql = "UPDATE Products SET Name = @Name, Description = @Description, UnitPrice = @UnitPrice, IsFeatured = @IsFeatured WHERE Id = @Id";
         var parameters = DbParam.Of(
@@ -51,21 +51,21 @@ internal sealed class ProductRepository : IProductRepository
             ("@UnitPrice", entity.UnitPrice),
             ("@IsFeatured", entity.IsFeatured)
         );
-        _session.Execute(sql, parameters);
+        await _session.ExecuteAsync(sql, parameters);
     }
 
-    public void Delete(Guid id)
+    public async Task DeleteAsync(Guid id)
     {
         var sql = "DELETE FROM Products WHERE Id = @Id";
         var parameters = DbParam.Of(("@Id", id.ToString()));
-        _session.Execute(sql, parameters);
+        await _session.ExecuteAsync(sql, parameters);
     }
 
-    public IReadOnlyList<Product> GetFeaturedProducts()
+    public async Task<IReadOnlyList<Product>> GetFeaturedProductsAsync()
     {
         var sql = "SELECT Id, Name, Description, UnitPrice, IsFeatured FROM Products WHERE IsFeatured = @IsFeatured";
         var parameters = DbParam.Of(("@IsFeatured", true));
-        return _session.Query(sql, Map, parameters);
+        return await _session.QueryAsync(sql, Map, parameters);
     }
 
     private static Product Map(DbDataReader reader) => new Product
