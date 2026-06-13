@@ -1,11 +1,12 @@
-﻿using CSBestpPactice.Domain.Entities;
+using CSBestpPactice.Domain.Entities;
 using CSBestpPactice.Domain.Repositories;
 using CSBestpPactice.Infrastructure.Data.Factories;
 using Dapper;
+using System.Data.Common;
 
 namespace CSBestpPactice.Infrastructure.Repositories.Dapper;
 
-internal sealed class ProductRepository : IProductRepository
+internal sealed class ProductRepository : IProductRepository, IProductRepositoryAsync
 {
     private readonly IDbConnectionFactory _factory;
 
@@ -14,68 +15,105 @@ internal sealed class ProductRepository : IProductRepository
         _factory = factory;
     }
 
+    private DbConnection OpenConnection()
+    {
+        var conn = _factory.CreateConnection();
+        conn.Open();
+        return conn;
+    }
+
+    private async Task<DbConnection> OpenConnectionAsync()
+    {
+        var conn = _factory.CreateConnection();
+        await conn.OpenAsync();
+        return conn;
+    }
+
     public IReadOnlyList<Product> GetAll()
     {
-        var sql = "SELECT Id, Name, Description, UnitPrice, IsFeatured FROM Products";
-        using var conn = _factory.CreateConnection();
-        conn.Open();
-        return conn.Query<Product>(sql).ToList();
+        using var conn = OpenConnection();
+        return conn.Query<Product>(
+            "SELECT Id, Name, Description, UnitPrice, IsFeatured FROM Products").ToList();
+    }
+
+    public async Task<IReadOnlyList<Product>> GetAllAsync()
+    {
+        await using var conn = await OpenConnectionAsync();
+        return (await conn.QueryAsync<Product>(
+            "SELECT Id, Name, Description, UnitPrice, IsFeatured FROM Products")).ToList();
     }
 
     public Product? GetById(Guid id)
     {
-        var sql = "SELECT Id, Name, Description, UnitPrice, IsFeatured FROM Products WHERE Id = @Id";
-        using var conn = _factory.CreateConnection();
-        conn.Open();
-        return conn.QuerySingleOrDefault<Product>(sql, new { Id = id.ToString() });
+        using var conn = OpenConnection();
+        return conn.QuerySingleOrDefault<Product>(
+            "SELECT Id, Name, Description, UnitPrice, IsFeatured FROM Products WHERE Id = @Id",
+            new { Id = id.ToString() });
+    }
+
+    public async Task<Product?> GetByIdAsync(Guid id)
+    {
+        await using var conn = await OpenConnectionAsync();
+        return await conn.QuerySingleOrDefaultAsync<Product>(
+            "SELECT Id, Name, Description, UnitPrice, IsFeatured FROM Products WHERE Id = @Id",
+            new { Id = id.ToString() });
     }
 
     public void Add(Product entity)
     {
-        var sql = "INSERT INTO Products (Id, Name, Description, UnitPrice, IsFeatured) VALUES (@Id, @Name, @Description, @UnitPrice, @IsFeatured)";
-        using var conn = _factory.CreateConnection();
-        conn.Open();
+        using var conn = OpenConnection();
         conn.Execute(
-            sql, 
-            new {
-                Id = entity.Id.ToString(),
-                Name = entity.Name,
-                Description = entity.Description,
-                UnitPrice = entity.UnitPrice,
-                IsFeatured = entity.IsFeatured
-            });
+            "INSERT INTO Products (Id, Name, Description, UnitPrice, IsFeatured) VALUES (@Id, @Name, @Description, @UnitPrice, @IsFeatured)",
+            new { Id = entity.Id.ToString(), entity.Name, entity.Description, entity.UnitPrice, entity.IsFeatured });
+    }
+
+    public async Task AddAsync(Product entity)
+    {
+        await using var conn = await OpenConnectionAsync();
+        await conn.ExecuteAsync(
+            "INSERT INTO Products (Id, Name, Description, UnitPrice, IsFeatured) VALUES (@Id, @Name, @Description, @UnitPrice, @IsFeatured)",
+            new { Id = entity.Id.ToString(), entity.Name, entity.Description, entity.UnitPrice, entity.IsFeatured });
     }
 
     public void Update(Product entity)
     {
-        var sql = "UPDATE Products SET Name = @Name, Description = @Description, UnitPrice = @UnitPrice, IsFeatured = @IsFeatured WHERE Id = @Id";
-        using var conn = _factory.CreateConnection();
-        conn.Open();
+        using var conn = OpenConnection();
         conn.Execute(
-            sql,
-            new
-            {
-                Id = entity.Id.ToString(),
-                Name = entity.Name,
-                Description = entity.Description,
-                UnitPrice = entity.UnitPrice,
-                IsFeatured = entity.IsFeatured
-            });
+            "UPDATE Products SET Name = @Name, Description = @Description, UnitPrice = @UnitPrice, IsFeatured = @IsFeatured WHERE Id = @Id",
+            new { Id = entity.Id.ToString(), entity.Name, entity.Description, entity.UnitPrice, entity.IsFeatured });
+    }
+
+    public async Task UpdateAsync(Product entity)
+    {
+        await using var conn = await OpenConnectionAsync();
+        await conn.ExecuteAsync(
+            "UPDATE Products SET Name = @Name, Description = @Description, UnitPrice = @UnitPrice, IsFeatured = @IsFeatured WHERE Id = @Id",
+            new { Id = entity.Id.ToString(), entity.Name, entity.Description, entity.UnitPrice, entity.IsFeatured });
     }
 
     public void Delete(Guid id)
     {
-        var sql = "DELETE FROM Products WHERE Id = @Id";
-        using var conn = _factory.CreateConnection();
-        conn.Open();
-        conn.Execute(sql, new { Id = id.ToString() });
+        using var conn = OpenConnection();
+        conn.Execute("DELETE FROM Products WHERE Id = @Id", new { Id = id.ToString() });
+    }
+
+    public async Task DeleteAsync(Guid id)
+    {
+        await using var conn = await OpenConnectionAsync();
+        await conn.ExecuteAsync("DELETE FROM Products WHERE Id = @Id", new { Id = id.ToString() });
     }
 
     public IReadOnlyList<Product> GetFeaturedProducts()
     {
-        var sql = "SELECT Id, Name, Description, UnitPrice, IsFeatured FROM Products WHERE IsFeatured = @IsFeatured";
-        using var conn = _factory.CreateConnection();
-        conn.Open();
-        return conn.Query<Product>(sql, new { IsFeatured = true }).ToList();
+        using var conn = OpenConnection();
+        return conn.Query<Product>(
+            "SELECT Id, Name, Description, UnitPrice, IsFeatured FROM Products WHERE IsFeatured = 1").ToList();
+    }
+
+    public async Task<IReadOnlyList<Product>> GetFeaturedProductsAsync()
+    {
+        await using var conn = await OpenConnectionAsync();
+        return (await conn.QueryAsync<Product>(
+            "SELECT Id, Name, Description, UnitPrice, IsFeatured FROM Products WHERE IsFeatured = 1")).ToList();
     }
 }

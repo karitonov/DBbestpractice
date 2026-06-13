@@ -40,8 +40,8 @@
 - ✅ `DbSession`（sync・async・DataTable を統合した実装）
 - ✅ `DbParam`
 - ✅ `DataTableExtensions`
-- ✅ `Repositories/AdoNet/ProductRepository`（同期・非同期）
-- ✅ `Repositories/Dapper/ProductRepository`（同期・非同期）
+- ✅ `Repositories/AdoNet/ProductRepository`（同期・非同期を1クラスに統合）
+- ✅ `Repositories/Dapper/ProductRepository`（同期・非同期を1クラスに統合）
 - ✅ `Repositories/EfCore/AppDbContext`
 - ✅ `Repositories/EfCore/ProductRepository`（同期・非同期を1クラスに統合）
 
