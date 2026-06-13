@@ -42,8 +42,8 @@
 - ✅ `DataTableExtensions`
 - ✅ `Repositories/AdoNet/ProductRepository`（同期・非同期）
 - ✅ `Repositories/Dapper/ProductRepository`（同期・非同期）
-- ⬜ `Repositories/EfCore/AppDbContext`
-- ⬜ `Repositories/EfCore/ProductRepository`
+- ✅ `Repositories/EfCore/AppDbContext`
+- ✅ `Repositories/EfCore/ProductRepository`（同期・非同期を1クラスに統合）
 
 ### ⬜ Step 3：Service 層
 - ⬜ `CSBestpPactice.Service` プロジェクト作成
