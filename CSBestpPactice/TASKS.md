@@ -41,7 +41,7 @@
 - ✅ `DbParam`
 - ✅ `DataTableExtensions`
 - ✅ `Repositories/AdoNet/ProductRepository`（同期・非同期）
-- ⬜ `Repositories/Dapper/ProductRepository`
+- ✅ `Repositories/Dapper/ProductRepository`（同期・非同期）
 - ⬜ `Repositories/EfCore/AppDbContext`
 - ⬜ `Repositories/EfCore/ProductRepository`
 

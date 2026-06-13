@@ -353,6 +353,43 @@ SQLite・PostgreSQL どちらでも同じコードが動く。
 
 | 方式 | 場所 | 特徴 |
 |---|---|---|
-| ADO.NET（DbSession） | `Repositories/AdoNet/` | 生の SQL。最も低レベルで制御しやすい |
+| ADO.NET | `Repositories/AdoNet/` | 生の SQL。最も低レベルで制御しやすい |
 | Dapper | `Repositories/Dapper/` | SQL はそのまま。オブジェクトへのマッピングを自動化 |
 | EF Core | `Repositories/EfCore/` | LINQ でクエリ。マイグレーション機能あり |
+
+### 実装の対比
+
+| 項目 | ADO.NET | Dapper | EF Core |
+|---|---|---|---|
+| 注入するもの | `IDbSession` | `IDbConnectionFactory` | `AppDbContext` |
+| SQL | 手書き | 手書き | LINQ（自動生成） |
+| マッピング | 手動（`Map` メソッド） | 自動（列名 = プロパティ名） | 自動 |
+| パラメーター渡し | `DbParam.Of(("@Id", id))` | 匿名型 `new { Id = id }` | LINQ 引数 |
+| トランザクション | `IDbSession.ExecuteInTransaction` | `conn.BeginTransaction()` | `SaveChanges()` で自動 |
+| マイグレーション | なし | なし | `dotnet ef migrations add` |
+| SQL の制御 | 完全 | 完全 | LINQ 経由（生 SQL も可） |
+| 学習コスト | 高 | 低〜中 | 中 |
+
+### コード量の対比（`GetAll` の例）
+
+```csharp
+// ADO.NET — 手動マッピングが必要
+public IReadOnlyList<Product> GetAll()
+{
+    using var conn = _factory.CreateConnection();
+    conn.Open();
+    return conn.Query("SELECT ...", Map).ToList();  // Map は自前メソッド
+}
+
+// Dapper — 列名一致で自動マッピング
+public IReadOnlyList<Product> GetAll()
+{
+    using var conn = _factory.CreateConnection();
+    conn.Open();
+    return conn.Query<Product>("SELECT ...").ToList();
+}
+
+// EF Core — SQL 不要
+public IReadOnlyList<Product> GetAll()
+    => _context.Products.ToList();
+```
