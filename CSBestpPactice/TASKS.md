@@ -26,10 +26,10 @@
 - ✅ `Product` エンティティ
 - ✅ `IRepository<T>`（同期）
 - ✅ `IRepositoryAsync<T>`（非同期）
-- ✅ `IProductRepository`（同期）
-- ✅ `IProductRepositoryAsync`（非同期）
+- 🔀 `IProductRepository`：同期・非同期を統合（`IRepository<Product>` + `IRepositoryAsync<Product>` を継承）（方針変更 #4）
+- 🔀 `IProductRepositoryAsync`：削除（方針変更 #4）
 
-### 🔄 Step 2：Infrastructure 層
+### ✅ Step 2：Infrastructure 層
 - ✅ `CSBestpPactice.Infrastructure` プロジェクト作成
 - ✅ NuGet パッケージ追加（Dapper / EF Core / SQLite / Npgsql）
 - ✅ フォルダ構成作成
@@ -46,10 +46,10 @@
 - ✅ `Repositories/EfCore/AppDbContext`
 - ✅ `Repositories/EfCore/ProductRepository`（同期・非同期を1クラスに統合）
 
-### ⬜ Step 3：Service 層
-- ⬜ `CSBestpPactice.Service` プロジェクト作成
-- ⬜ `IProductService` インターフェース
-- ⬜ `ProductService` 実装
+### 🔄 Step 3：Service 層
+- ✅ `CSBestpPactice.Service` プロジェクト作成
+- ✅ `IProductService` インターフェース
+- 🔄 `ProductService` 実装
 
 ---
 
