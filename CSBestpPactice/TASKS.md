@@ -15,6 +15,7 @@
 | 1 | `IRepository<T>` と `IRepositoryAsync<T>` を分離 | sync / async で別インターフェースにすることで必要な方だけ実装できる |
 | 2 | `DbSession` 4クラス → 1クラスに統合 | sync・async・DataTable の責務はすべて「DBとのセッション管理」で一致。`EF Core の DbContext` と同様に同期・非同期を同一クラスに持つ設計に変更 |
 | 3 | `IDbSession` インターフェースを追加 | Repository コンストラクターへの注入・テスト時のモック差し替えを可能にするため |
+| 4 | `IProductRepositoryAsync` を削除し `IProductRepository` に統合 | UI アプリは同期・非同期どちらか一方しか使わないため分離の意味が薄く、`IProductRepository : IRepository<Product>, IRepositoryAsync<Product>` の単一インターフェースに統合して Service からの注入を簡素化 |
 
 ---
 

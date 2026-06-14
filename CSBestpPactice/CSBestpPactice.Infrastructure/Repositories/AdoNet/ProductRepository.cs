@@ -6,7 +6,7 @@ using System.Data.Common;
 
 namespace CSBestpPactice.Infrastructure.Repositories.AdoNet;
 
-internal sealed class ProductRepository : IProductRepository, IProductRepositoryAsync
+internal sealed class ProductRepository : IProductRepository
 {
     private readonly IDbSession _session;
 

@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CSBestpPactice.Infrastructure.Repositories.EfCore;
 
-internal sealed class ProductRepository : IProductRepository, IProductRepositoryAsync
+internal sealed class ProductRepository : IProductRepository
 {
     private readonly AppDbContext _context;
 
