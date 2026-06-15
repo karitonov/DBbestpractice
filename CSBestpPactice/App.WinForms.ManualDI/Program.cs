@@ -1,6 +1,7 @@
 using CSBestpPactice.Infrastructure.Data.Factories;
 using CSBestpPactice.Infrastructure.Data.Sessions;
 using CSBestpPactice.Infrastructure.Repositories.AdoNet;
+using CSBestpPactice.Infrastructure.Repositories.DataTables;
 using CSBestpPactice.Service;
 using System.Configuration;
 
@@ -25,8 +26,9 @@ namespace App.WinForms.ManualDI
             var session = new DbSession(factory.CreateConnection());
             var repository = new ProductRepository(session);
             var service = new ProductService(repository);
+            var tableRepository = new ProductTableRepository(session);
 
-            Application.Run(new Form1(service));
+            Application.Run(new Form1(service, tableRepository));
         }
     }
 }
