@@ -393,3 +393,70 @@ public IReadOnlyList<Product> GetAll()
 public IReadOnlyList<Product> GetAll()
     => _context.Products.ToList();
 ```
+
+---
+
+## DataTable ルート
+
+### DataAdapter の歴史的経緯とライブラリ差異
+
+DataAdapter（`DbDataAdapter` を継承した `XxxDataAdapter` クラス）は .NET Framework 時代の WinForms 標準パターンだった。
+DataGridView + DataAdapter + DataSet/DataTable を組み合わせ、`Fill` で取得・`Update` で書き戻す構成が広く使われた。
+
+しかし、.NET Core 以降に SQLite を扱うライブラリが分裂し、DataAdapter の有無が異なる：
+
+| ライブラリ | 主な対象 | `XxxDataAdapter` | 設計思想 |
+|---|---|---|---|
+| `System.Data.SQLite` | .NET Framework 2.0〜4.8 | ✅ `SQLiteDataAdapter` あり | ADO.NET を完全実装した旧来ライブラリ |
+| `Microsoft.Data.Sqlite` | .NET Core〜 / .NET 5〜9 | ❌ **なし** | 軽量設計。重量級 ADO.NET パターンは意図的に省略 |
+| `Npgsql` | .NET Framework〜 / .NET 5〜9 | ✅ `NpgsqlDataAdapter` あり | 旧来から継続開発。フル ADO.NET 実装を維持 |
+
+このプロジェクトは `net8.0` + `Microsoft.Data.Sqlite` を使用しているため `SqliteDataAdapter` は存在しない。
+そのため DataAdapter パターンのコアロジック（RowState による SQL 振り分け）を自前で実装している。
+
+`ProductTableRepository` は DataTable の取得（Fill 相当）と書き戻し（Update 相当）の両方を担う。
+接続管理は `IDbSession` に委譲し、DataAdapter パターンのコアである「RowState に基づく SQL 自動判定」を自前で実装する。
+
+```
+GetAll()
+  IDbSession.QueryDataTable(sql)
+    → DbDataReader → DataTable（全列 object 型）
+    → Normalize（BLOB→TEXT、IsFeatured→bool）
+    → AcceptChanges()（全行 RowState = Unchanged）
+    → DataGridView 表示
+
+Update(table)
+  RowState を見て SQL を振り分け → IDbSession.ExecuteInTransaction
+    → AcceptChanges()（書き戻し完了）
+```
+
+### RowState の仕組み
+
+DataTable は行ごとに「変更前の値（Original）」と「変更後の値（Current）」を保持する。
+
+```
+GetAll() 直後
+  行A: RowState = Unchanged
+  行B: RowState = Unchanged
+
+DataGridView で編集
+  行A を変更 → RowState = Modified（Original = 変更前、Current = 変更後）
+  行C を追加 → RowState = Added  （Current のみ）
+  行B を削除 → RowState = Deleted（Original のみ残る）
+
+Update(table) 実行
+  Added    → InsertRow：Current 値で INSERT
+  Modified → UpdateRow：Current 値で SET、Original["Id"] で WHERE
+  Deleted  → DeleteRow：Original["Id"] で WHERE
+  Unchanged→ スキップ
+```
+
+**`DataRowVersion.Original` が必要な理由：**
+Modified/Deleted 行の WHERE 条件には「変更前の Id」が必要。
+Deleted 行は `row["Id"]`（Current）にアクセスすると例外になるため、`DataRowVersion.Original` が必須。
+
+### `AcceptChanges()` を Normalize 内で呼ぶ理由
+
+`BuildDataTable`（DbSession）は `table.Rows.Add(row)` で行を追加するため、全行が `RowState = Added` の状態で返る。
+Normalize の末尾で `AcceptChanges()` を呼ぶことで全行を `Unchanged` にリセットし、
+その後のユーザー操作だけが Modified/Added/Deleted として記録される。
