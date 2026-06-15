@@ -71,7 +71,7 @@ public sealed class ProductTableRepository : IProductTableRepository
         if (table.Rows[0]["IsFeatured"] is not bool)
         {
             int ordinal = table.Columns["IsFeatured"]!.Ordinal;
-            var boolCol = new DataColumn("IsFeaturedBool", typeof(bool));
+            var boolCol = new DataColumn("IsFeaturedBool", typeof(bool)) { DefaultValue = false };
             table.Columns.Add(boolCol);
             foreach (DataRow row in table.Rows)
                 row["IsFeaturedBool"] = Convert.ToBoolean(row["IsFeatured"]);
@@ -81,6 +81,146 @@ public sealed class ProductTableRepository : IProductTableRepository
             boolCol.SetOrdinal(ordinal);
         }
 
+        table.AcceptChanges();
         return table;
     }
+
+    #region 同期UPDATE
+    public int Update(DataTable table)
+    {
+        var changed = table.GetChanges();
+        if (changed is null) return 0;
+
+        int count = 0;
+        _session.ExecuteInTransaction(() =>
+        {
+            foreach (DataRow row in changed.Rows)
+            {
+                count += row.RowState switch
+                {
+                    DataRowState.Added => InsertRow(row),
+                    DataRowState.Modified => UpdateRow(row),
+                    DataRowState.Deleted => DeleteRow(row),
+                    _ => 0,
+                };
+            }
+        });
+
+        table.AcceptChanges();
+        return count;
+    }
+
+    private int InsertRow(DataRow row)
+    {
+        var id = row["Id"] is DBNull or "" ? Guid.NewGuid().ToString() : row["Id"];
+        var sql =
+            """
+            INSERT INTO Products (Id, Name, Description, UnitPrice, IsFeatured)
+            VALUES (@Id, @Name, @Description, @UnitPrice, @IsFeatured)
+            """;
+
+        return _session.Execute(sql, DbParam.Of(
+            ("@Id",          id),
+            ("@Name",        row["Name"]),
+            ("@Description", row["Description"]),
+            ("@UnitPrice",   row["UnitPrice"]),
+            ("@IsFeatured",  row["IsFeatured"])
+        ));
+    }
+
+    private int UpdateRow(DataRow row)
+    {
+        var sql = 
+            """
+            UPDATE Products
+            SET Name = @Name, Description = @Description,
+                UnitPrice = @UnitPrice, IsFeatured = @IsFeatured
+            WHERE Id = @Id
+            """;
+        return _session.Execute(sql, DbParam.Of(
+            ("@Id", row["Id", DataRowVersion.Original]),
+            ("@Name", row["Name"]),
+            ("@Description", row["Description"]),
+            ("@UnitPrice", row["UnitPrice"]),
+            ("@IsFeatured", row["IsFeatured"])
+        ));
+    }
+
+    private int DeleteRow(DataRow row)
+    {
+        var sql = "DELETE FROM Products WHERE Id = @Id";
+        return _session.Execute(sql, DbParam.Of(
+            ("@Id", row["Id", DataRowVersion.Original])
+        ));
+    }
+    #endregion
+
+    #region 非同期UPDATE
+    public async Task<int> UpdateAsync(DataTable table)
+    {
+        var changed = table.GetChanges();
+        if (changed is null) return 0;
+
+        int count = 0;
+        await _session.ExecuteInTransactionAsync(async () =>
+        {
+            foreach (DataRow row in changed.Rows)
+            {
+                count += row.RowState switch
+                {
+                    DataRowState.Added => await InsertRowAsync(row),
+                    DataRowState.Modified => await UpdateRowAsync(row),
+                    DataRowState.Deleted => await DeleteRowAsync(row),
+                    _ => 0,
+                };
+            }
+        });
+
+        table.AcceptChanges();
+        return count;
+    }
+
+    private async Task<int> InsertRowAsync(DataRow row)
+    {
+        var id = row["Id"] is DBNull or "" ? Guid.NewGuid().ToString() : row["Id"];
+        var sql =
+            """
+            INSERT INTO Products (Id, Name, Description, UnitPrice, IsFeatured)
+            VALUES (@Id, @Name, @Description, @UnitPrice, @IsFeatured)
+            """;
+        return await _session.ExecuteAsync(sql, DbParam.Of(
+            ("@Id",          id),
+            ("@Name",        row["Name"]),
+            ("@Description", row["Description"]),
+            ("@UnitPrice",   row["UnitPrice"]),
+            ("@IsFeatured",  row["IsFeatured"])
+        ));
+    }
+
+    private async Task<int> UpdateRowAsync(DataRow row)
+    {
+        var sql = 
+            """
+            UPDATE Products
+            SET Name = @Name, Description = @Description,
+                UnitPrice = @UnitPrice, IsFeatured = @IsFeatured
+            WHERE Id = @Id
+            """;
+        return await _session.ExecuteAsync(sql, DbParam.Of(
+            ("@Id", row["Id", DataRowVersion.Original]),
+            ("@Name", row["Name"]),
+            ("@Description", row["Description"]),
+            ("@UnitPrice", row["UnitPrice"]),
+            ("@IsFeatured", row["IsFeatured"])
+        ));
+    }
+
+    private async Task<int> DeleteRowAsync(DataRow row)
+    {
+        var sql = "DELETE FROM Products WHERE Id = @Id";
+        return await _session.ExecuteAsync(sql, DbParam.Of(
+            ("@Id", row["Id", DataRowVersion.Original])
+        ));
+    }
+    #endregion
 }

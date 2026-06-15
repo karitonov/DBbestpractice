@@ -1,6 +1,7 @@
 using CSBestpPactice.Domain.Entities;
 using CSBestpPactice.Infrastructure.Repositories.DataTables;
 using CSBestpPactice.Service;
+using System.Data;
 
 namespace App.WinForms.ManualDI
 {
@@ -24,7 +25,7 @@ namespace App.WinForms.ManualDI
         {
             dgvProducts.DataSource = _service.GetAll().ToList();
             dgvProductsTable.DataSource = _tableRepository.GetAll();
-            dgvProductsTable.AllowUserToAddRows = false;  // バインド後に設定
+            dgvProductsTable.Columns["Id"].ReadOnly = true;
         }
 
         private Product? GetSelectedProduct()
@@ -81,6 +82,31 @@ namespace App.WinForms.ManualDI
                 _service.Delete(product.Id);
                 Reload();
             }
+        }
+
+        private void btnUpdate_Click(object sender, EventArgs e)
+        {
+            var table = (DataTable)dgvProductsTable.DataSource;
+
+            foreach (DataRow row in table.Rows)
+            {
+                if (row.RowState is not DataRowState.Added and not DataRowState.Modified) continue;
+
+                if (row["Name"] is DBNull || string.IsNullOrWhiteSpace(row["Name"]?.ToString()))
+                {
+                    MessageBox.Show("商品名を入力してください。", "入力エラー", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+                if (row["UnitPrice"] is DBNull)
+                {
+                    MessageBox.Show("単価を入力してください。", "入力エラー", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+            }
+
+            int count = _tableRepository.Update(table);
+            MessageBox.Show($"{count} 件の変更を保存しました。");
+            Reload();
         }
     }
 }

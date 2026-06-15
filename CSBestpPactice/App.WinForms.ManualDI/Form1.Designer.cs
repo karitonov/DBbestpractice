@@ -35,6 +35,7 @@
             btnAdd = new Button();
             btnEdit = new Button();
             btnDelete = new Button();
+            btnUpdate = new Button();
             tableLayoutPanel1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)dgvProductsTable).BeginInit();
             ((System.ComponentModel.ISupportInitialize)dgvProducts).BeginInit();
@@ -64,7 +65,6 @@
             dgvProductsTable.Dock = DockStyle.Fill;
             dgvProductsTable.Location = new Point(3, 248);
             dgvProductsTable.Name = "dgvProductsTable";
-            dgvProductsTable.ReadOnly = true;
             dgvProductsTable.Size = new Size(794, 199);
             dgvProductsTable.TabIndex = 2;
             // 
@@ -85,6 +85,7 @@
             flpButtons.Controls.Add(btnAdd);
             flpButtons.Controls.Add(btnEdit);
             flpButtons.Controls.Add(btnDelete);
+            flpButtons.Controls.Add(btnUpdate);
             flpButtons.Dock = DockStyle.Fill;
             flpButtons.Location = new Point(3, 3);
             flpButtons.Name = "flpButtons";
@@ -121,6 +122,16 @@
             btnDelete.UseVisualStyleBackColor = true;
             btnDelete.Click += btnDelete_Click;
             // 
+            // btnUpdate
+            // 
+            btnUpdate.Location = new Point(246, 3);
+            btnUpdate.Name = "btnUpdate";
+            btnUpdate.Size = new Size(75, 23);
+            btnUpdate.TabIndex = 3;
+            btnUpdate.Text = "更新";
+            btnUpdate.UseVisualStyleBackColor = true;
+            btnUpdate.Click += btnUpdate_Click;
+            // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
@@ -146,5 +157,6 @@
         private Button btnAdd;
         private Button btnEdit;
         private Button btnDelete;
+        private Button btnUpdate;
     }
 }
