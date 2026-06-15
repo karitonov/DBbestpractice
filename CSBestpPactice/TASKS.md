@@ -66,7 +66,7 @@
 - ✅ `ConfigurationManager` で設定読み込み
 - ✅ `Program.cs`：手動で `new` して DI 組み立て
 - ✅ `Form1`：商品一覧（DataGridView）— エンティティルート / DataTable ルート並列表示
-- ⬜ CRUD 機能（追加・編集・削除）— ADO.NET Repository ルート
+- ✅ CRUD 機能（追加・編集・削除）— ADO.NET Repository ルート
 - ⬜ DataAdapter パターン実装（`Data/DataAdapters/ProductDataAdapter`）
 - ⬜ DataAdapter を使った CRUD 画面
 
