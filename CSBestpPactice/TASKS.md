@@ -16,6 +16,8 @@
 | 2 | `DbSession` 4クラス → 1クラスに統合 | sync・async・DataTable の責務はすべて「DBとのセッション管理」で一致。`EF Core の DbContext` と同様に同期・非同期を同一クラスに持つ設計に変更 |
 | 3 | `IDbSession` インターフェースを追加 | Repository コンストラクターへの注入・テスト時のモック差し替えを可能にするため |
 | 4 | `IProductRepositoryAsync` を削除し `IProductRepository` に統合 | UI アプリは同期・非同期どちらか一方しか使わないため分離の意味が薄く、`IProductRepository : IRepository<Product>, IRepositoryAsync<Product>` の単一インターフェースに統合して Service からの注入を簡素化 |
+| 5 | `DbSession` を遅延オープン方式に変更 | 起動時に `Open()` を呼ぶ設計はリソースを無駄に保持するため、`BuildCommand` / `BeginTransaction` で接続が閉じていれば自動で `Open()` する設計に変更 |
+| 6 | `Repositories/DataTables/` を追加 | DataAdapter パターンとは分離し、`DbSession.QueryDataTable` を使う DataTable 返しのルートをデモとして追加 |
 
 ---
 
@@ -45,22 +47,26 @@
 - ✅ `Repositories/Dapper/ProductRepository`（同期・非同期を1クラスに統合）
 - ✅ `Repositories/EfCore/AppDbContext`
 - ✅ `Repositories/EfCore/ProductRepository`（同期・非同期を1クラスに統合）
+- 🔀 `DbSession` 遅延オープン方式に変更（方針変更 #5）
+- ✅ `AdoNet/ProductRepository`：BLOB/TEXT 両対応の `ReadGuid` ヘルパー追加
+- 🔀 `Repositories/DataTables/IProductTableRepository` + `ProductTableRepository`（方針変更 #6）
 
-### 🔄 Step 3：Service 層
+### ✅ Step 3：Service 層
 - ✅ `CSBestpPactice.Service` プロジェクト作成
 - ✅ `IProductService` インターフェース
-- 🔄 `ProductService` 実装
+- ✅ `ProductService` 実装
 
 ---
 
 ## Phase 2：UI サンプル
 
-### ⬜ Step 4：App.WinForms.ManualDI
-- ⬜ プロジェクト作成
-- ⬜ `App.config` 接続文字列設定
-- ⬜ `ConfigurationManager` で設定読み込み
-- ⬜ `Program.cs`：手動で `new` して DI 組み立て
-- ⬜ `MainForm`：商品一覧（DataGridView）
+### 🔄 Step 4：App.WinForms.ManualDI
+- ✅ プロジェクト作成
+- ✅ `App.config` 接続文字列設定
+- ✅ `ConfigurationManager` で設定読み込み
+- ✅ `Program.cs`：手動で `new` して DI 組み立て
+- ✅ `Form1`：商品一覧（DataGridView）— エンティティルート / DataTable ルート並列表示
+- ⬜ CRUD 機能（追加・編集・削除）
 
 ### ⬜ Step 5：App.WinForms.DIContainer
 - ⬜ プロジェクト作成
