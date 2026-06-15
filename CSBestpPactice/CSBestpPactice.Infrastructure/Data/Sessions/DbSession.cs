@@ -3,7 +3,7 @@ using System.Data.Common;
 
 namespace CSBestpPactice.Infrastructure.Data.Sessions;
 
-internal sealed class DbSession : IDbSession
+public sealed class DbSession : IDbSession
 {
     #region Fields & Constructor
 
@@ -170,10 +170,18 @@ internal sealed class DbSession : IDbSession
     #region Transaction
 
     public void BeginTransaction(IsolationLevel isolationLevel = IsolationLevel.ReadCommitted)
-        => _transaction = _connection.BeginTransaction(isolationLevel);
+    {
+        if (_connection.State != System.Data.ConnectionState.Open)
+            _connection.Open();
+        _transaction = _connection.BeginTransaction(isolationLevel);
+    }
 
     public async Task BeginTransactionAsync(IsolationLevel isolationLevel = IsolationLevel.ReadCommitted)
-        => _transaction = await _connection.BeginTransactionAsync(isolationLevel);
+    {
+        if (_connection.State != System.Data.ConnectionState.Open)
+            await _connection.OpenAsync();
+        _transaction = await _connection.BeginTransactionAsync(isolationLevel);
+    }
 
     public void Commit()
     {
@@ -239,6 +247,9 @@ internal sealed class DbSession : IDbSession
 
     private DbCommand BuildCommand(string sql, Action<DbCommand>? parameters)
     {
+        if (_connection.State != System.Data.ConnectionState.Open)
+            _connection.Open();
+
         DbCommand cmd = _connection.CreateCommand();
         cmd.CommandText = sql;
         cmd.Transaction = _transaction;

@@ -1,4 +1,5 @@
 <Solution>
+  <Project Path="App.WinForms.ManualDI/App.WinForms.ManualDI.csproj" Id="17fc1995-4726-4e08-afd8-9646ca1c6b36" />
   <Project Path="CSBestpPactice.Domain/CSBestpPactice.Domain.csproj" />
   <Project Path="CSBestpPactice.Infrastructure/CSBestpPactice.Infrastructure.csproj" />
   <Project Path="CSBestpPactice.Service/CSBestpPactice.Service.csproj" Id="3e96599a-0e52-4a76-8607-efeaaca96681" />

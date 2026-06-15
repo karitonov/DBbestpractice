@@ -3,7 +3,7 @@ using CSBestpPactice.Domain.Repositories;
 
 namespace CSBestpPactice.Service;
 
-internal sealed class ProductService : IProductService
+public sealed class ProductService : IProductService
 {
     private readonly IProductRepository _repository;
 
@@ -12,6 +12,7 @@ internal sealed class ProductService : IProductService
         _repository = repository;
     }
 
+    #region 同期
     public IReadOnlyList<Product> GetAll()
     {
         return _repository.GetAll();
@@ -41,7 +42,9 @@ internal sealed class ProductService : IProductService
     {
         return _repository.GetFeaturedProducts();
     }
+    #endregion
 
+    #region 非同期
     public async Task<IReadOnlyList<Product>> GetAllAsync()
     {
         return await _repository.GetAllAsync();
@@ -71,4 +74,5 @@ internal sealed class ProductService : IProductService
     {
         await _repository.DeleteAsync(id);
     }
+    #endregion
 }

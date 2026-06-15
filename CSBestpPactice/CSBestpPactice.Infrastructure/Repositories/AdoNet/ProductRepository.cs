@@ -6,7 +6,7 @@ using System.Data.Common;
 
 namespace CSBestpPactice.Infrastructure.Repositories.AdoNet;
 
-internal sealed class ProductRepository : IProductRepository
+public sealed class ProductRepository : IProductRepository
 {
     private readonly IDbSession _session;
 
@@ -107,9 +107,15 @@ internal sealed class ProductRepository : IProductRepository
         return await _session.QueryAsync(sql, Map);
     }
 
+    private static Guid ReadGuid(DbDataReader reader, int ordinal)
+    {
+        var value = reader.GetValue(ordinal);
+        return value is byte[] bytes ? new Guid(bytes) : Guid.Parse(value.ToString()!);
+    }
+
     private static Product Map(DbDataReader reader) => new Product
     {
-        Id          = Guid.Parse(reader.GetString(reader.GetOrdinal("Id"))),
+        Id          = ReadGuid(reader, reader.GetOrdinal("Id")),
         Name        = reader.GetString(reader.GetOrdinal("Name")),
         Description = reader.IsDBNull(reader.GetOrdinal("Description"))
                           ? null

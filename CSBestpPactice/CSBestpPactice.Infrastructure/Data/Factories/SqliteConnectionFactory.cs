@@ -3,7 +3,7 @@ using System.Data.Common;
 
 namespace CSBestpPactice.Infrastructure.Data.Factories;
 
-internal sealed class SqliteConnectionFactory : IDbConnectionFactory
+public sealed class SqliteConnectionFactory : IDbConnectionFactory
 {
     private readonly string _connectionString;
 
