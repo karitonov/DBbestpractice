@@ -89,10 +89,7 @@ public sealed class DbSession : IDbSession
     {
         using DbCommand cmd = BuildCommand(sql, parameters);
         using DbDataReader reader = cmd.ExecuteReader();
-
-        var table = new DataTable();
-        table.Load(reader);
-        return table;
+        return BuildDataTable(reader);
     }
 
     public DataRow? QueryDataRow(
@@ -109,10 +106,7 @@ public sealed class DbSession : IDbSession
     {
         using DbCommand cmd = BuildCommand(sql, parameters);
         await using DbDataReader reader = await cmd.ExecuteReaderAsync();
-
-        var table = new DataTable();
-        table.Load(reader);
-        return table;
+        return BuildDataTable(reader);
     }
 
     public async Task<DataRow?> QueryDataRowAsync(
@@ -244,6 +238,24 @@ public sealed class DbSession : IDbSession
     #endregion
 
     #region Private
+
+    // すべての列を object 型で定義することで、SQLite の動的型付けによる
+    // BLOB/TEXT 混在でも DataTable への格納が失敗しないようにする
+    private static DataTable BuildDataTable(DbDataReader reader)
+    {
+        var table = new DataTable();
+        for (int i = 0; i < reader.FieldCount; i++)
+            table.Columns.Add(reader.GetName(i), typeof(object));
+
+        while (reader.Read())
+        {
+            var row = table.NewRow();
+            for (int i = 0; i < reader.FieldCount; i++)
+                row[i] = reader.IsDBNull(i) ? DBNull.Value : reader.GetValue(i);
+            table.Rows.Add(row);
+        }
+        return table;
+    }
 
     private DbCommand BuildCommand(string sql, Action<DbCommand>? parameters)
     {

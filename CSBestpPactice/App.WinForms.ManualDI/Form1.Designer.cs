@@ -31,9 +31,14 @@
             tableLayoutPanel1 = new TableLayoutPanel();
             dgvProductsTable = new DataGridView();
             dgvProducts = new DataGridView();
+            flpButtons = new FlowLayoutPanel();
+            btnAdd = new Button();
+            btnEdit = new Button();
+            btnDelete = new Button();
             tableLayoutPanel1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)dgvProductsTable).BeginInit();
             ((System.ComponentModel.ISupportInitialize)dgvProducts).BeginInit();
+            flpButtons.SuspendLayout();
             SuspendLayout();
             // 
             // tableLayoutPanel1
@@ -42,11 +47,12 @@
             tableLayoutPanel1.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
             tableLayoutPanel1.Controls.Add(dgvProductsTable, 0, 2);
             tableLayoutPanel1.Controls.Add(dgvProducts, 0, 1);
+            tableLayoutPanel1.Controls.Add(flpButtons, 0, 0);
             tableLayoutPanel1.Dock = DockStyle.Fill;
             tableLayoutPanel1.Location = new Point(0, 0);
             tableLayoutPanel1.Name = "tableLayoutPanel1";
             tableLayoutPanel1.RowCount = 3;
-            tableLayoutPanel1.RowStyles.Add(new RowStyle(SizeType.Absolute, 30F));
+            tableLayoutPanel1.RowStyles.Add(new RowStyle(SizeType.Absolute, 40F));
             tableLayoutPanel1.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
             tableLayoutPanel1.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
             tableLayoutPanel1.Size = new Size(800, 450);
@@ -56,19 +62,64 @@
             // 
             dgvProductsTable.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             dgvProductsTable.Dock = DockStyle.Fill;
-            dgvProductsTable.Location = new Point(3, 243);
+            dgvProductsTable.Location = new Point(3, 248);
             dgvProductsTable.Name = "dgvProductsTable";
-            dgvProductsTable.Size = new Size(794, 204);
+            dgvProductsTable.ReadOnly = true;
+            dgvProductsTable.Size = new Size(794, 199);
             dgvProductsTable.TabIndex = 2;
             // 
             // dgvProducts
             // 
             dgvProducts.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             dgvProducts.Dock = DockStyle.Fill;
-            dgvProducts.Location = new Point(3, 33);
+            dgvProducts.Location = new Point(3, 43);
+            dgvProducts.MultiSelect = false;
             dgvProducts.Name = "dgvProducts";
-            dgvProducts.Size = new Size(794, 204);
+            dgvProducts.ReadOnly = true;
+            dgvProducts.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+            dgvProducts.Size = new Size(794, 199);
             dgvProducts.TabIndex = 1;
+            // 
+            // flpButtons
+            // 
+            flpButtons.Controls.Add(btnAdd);
+            flpButtons.Controls.Add(btnEdit);
+            flpButtons.Controls.Add(btnDelete);
+            flpButtons.Dock = DockStyle.Fill;
+            flpButtons.Location = new Point(3, 3);
+            flpButtons.Name = "flpButtons";
+            flpButtons.Size = new Size(794, 34);
+            flpButtons.TabIndex = 3;
+            // 
+            // btnAdd
+            // 
+            btnAdd.Location = new Point(3, 3);
+            btnAdd.Name = "btnAdd";
+            btnAdd.Size = new Size(75, 23);
+            btnAdd.TabIndex = 0;
+            btnAdd.Text = "追加";
+            btnAdd.UseVisualStyleBackColor = true;
+            btnAdd.Click += btnAdd_Click;
+            // 
+            // btnEdit
+            // 
+            btnEdit.Location = new Point(84, 3);
+            btnEdit.Name = "btnEdit";
+            btnEdit.Size = new Size(75, 23);
+            btnEdit.TabIndex = 1;
+            btnEdit.Text = "編集";
+            btnEdit.UseVisualStyleBackColor = true;
+            btnEdit.Click += btnEdit_Click;
+            // 
+            // btnDelete
+            // 
+            btnDelete.Location = new Point(165, 3);
+            btnDelete.Name = "btnDelete";
+            btnDelete.Size = new Size(75, 23);
+            btnDelete.TabIndex = 2;
+            btnDelete.Text = "削除";
+            btnDelete.UseVisualStyleBackColor = true;
+            btnDelete.Click += btnDelete_Click;
             // 
             // Form1
             // 
@@ -82,6 +133,7 @@
             tableLayoutPanel1.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)dgvProductsTable).EndInit();
             ((System.ComponentModel.ISupportInitialize)dgvProducts).EndInit();
+            flpButtons.ResumeLayout(false);
             ResumeLayout(false);
         }
 
@@ -90,5 +142,9 @@
         private TableLayoutPanel tableLayoutPanel1;
         private DataGridView dgvProducts;
         private DataGridView dgvProductsTable;
+        private FlowLayoutPanel flpButtons;
+        private Button btnAdd;
+        private Button btnEdit;
+        private Button btnDelete;
     }
 }

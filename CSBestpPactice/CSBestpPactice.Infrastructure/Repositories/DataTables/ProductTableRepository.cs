@@ -51,13 +51,15 @@ public sealed class ProductTableRepository : IProductTableRepository
 
     private static DataTable Normalize(DataTable table)
     {
-        // Id: BLOB → GUID 文字列
-        if (table.Columns.Contains("Id") && table.Columns["Id"]!.DataType == typeof(byte[]))
+        if (table.Rows.Count == 0) return table;
+
+        // Id: BLOB → GUID 文字列（値ベースで判定。列型は常に object）
+        if (table.Rows[0]["Id"] is byte[])
         {
             var idStr = new DataColumn("IdStr", typeof(string));
             table.Columns.Add(idStr);
             foreach (DataRow row in table.Rows)
-                row["IdStr"] = new Guid((byte[])row["Id"]).ToString();
+                row["IdStr"] = row["Id"] is byte[] b ? new Guid(b).ToString() : row["Id"];
 
             table.PrimaryKey = [];
             table.Columns.Remove("Id");
@@ -65,8 +67,8 @@ public sealed class ProductTableRepository : IProductTableRepository
             idStr.SetOrdinal(0);
         }
 
-        // IsFeatured: INTEGER(0/1) → bool
-        if (table.Columns.Contains("IsFeatured") && table.Columns["IsFeatured"]!.DataType != typeof(bool))
+        // IsFeatured: INTEGER(0/1) → bool（値ベースで判定）
+        if (table.Rows[0]["IsFeatured"] is not bool)
         {
             int ordinal = table.Columns["IsFeatured"]!.Ordinal;
             var boolCol = new DataColumn("IsFeaturedBool", typeof(bool));
