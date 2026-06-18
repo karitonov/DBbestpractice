@@ -70,7 +70,7 @@
 - ✅ `Form1`：商品一覧（DataGridView）— エンティティルート / DataTable ルート並列表示
 - ✅ CRUD 機能（追加・編集・削除）— ADO.NET Repository ルート
 - ✅ `ProductTableRepository.Update(DataTable)` 追加（方針変更 #7）
-- ⬜ DataTable ルートの CRUD 画面（`dgvProductsTable` から書き戻し）
+- ✅ DataTable ルートの CRUD 画面（`btnUpdate_Click` で `dgvProductsTable` から書き戻し、Name/UnitPrice 必須バリデーション付き）
 
 ### ⬜ Step 5：App.WinForms.DIContainer
 - ⬜ プロジェクト作成
