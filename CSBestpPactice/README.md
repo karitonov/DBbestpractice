@@ -430,6 +430,48 @@ Update(table)
     → AcceptChanges()（書き戻し完了）
 ```
 
+### エンティティルート（`IProductService`）とのフロー比較
+
+`App.WinForms.ManualDI` には `IProductService` 経由のエンティティルートと、上記の DataTable ルートが並列で存在する。
+
+```
+エンティティルート
+  btnAdd_Click
+    ProductEditForm.ShowDialog() → Product を生成
+    _service.Register(product)
+      ProductService.Register → _repository.Add(product)
+        AdoNet.ProductRepository.Add
+          IDbSession.Execute(INSERT, entity の各プロパティを @パラメーターに展開)
+  Reload()
+    _service.GetAll()
+      IDbSession.Query(sql, Map)
+        DbDataReader → Map(reader) で1行ずつ Product にマッピング（手書き）
+        → List<Product>
+    dgvProducts.DataSource = list
+
+DataTable ルート
+  （グリッド上で直接セル編集 → RowState が自動で Added/Modified/Deleted に変化）
+  btnUpdate_Click
+    table = dgvProductsTable.DataSource（既に DataTable）
+    _tableRepository.Update(table)
+      GetChanges() で変更行抽出 → RowState で振り分け → InsertRow/UpdateRow/DeleteRow
+      AcceptChanges()
+  Reload()
+    _tableRepository.GetAll()
+      IDbSession.QueryDataTable(sql)
+        DbDataReader → DataTable（全列 object 型、エンティティへのマッピングなし）
+      Normalize（BLOB→TEXT、IsFeatured→bool、AcceptChanges）
+    dgvProductsTable.DataSource = table
+```
+
+| 観点 | エンティティルート | DataTable ルート |
+|---|---|---|
+| データの型 | `Product`（強い型） | `DataTable`（列はすべて `object`） |
+| DB → アプリ間のマッピング | `Map(DbDataReader)` で手動マッピング | マッピングなし（生の列値のまま） |
+| 変更の検知 | なし（ボタンごとに明示的に呼び分け） | `RowState` が編集を自動追跡 |
+| 書き戻しの単位 | 1操作 = 1エンティティ = 1 SQL | 1回の保存 = 複数行の変更をまとめて1トランザクション |
+| UI のデータバインド | `List<Product>`（読み取り専用表示 + 別ダイアログで編集） | `DataTable`（グリッド直接編集） |
+
 ### RowState の仕組み
 
 DataTable は行ごとに「変更前の値（Original）」と「変更後の値（Current）」を保持する。
