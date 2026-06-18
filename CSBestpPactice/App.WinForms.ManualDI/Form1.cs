@@ -1,5 +1,4 @@
 using CSBestpPactice.Domain.Entities;
-using CSBestpPactice.Infrastructure.Repositories.DataTables;
 using CSBestpPactice.Service;
 using System.Data;
 
@@ -8,12 +7,12 @@ namespace App.WinForms.ManualDI
     public partial class Form1 : Form
     {
         private readonly IProductService _service;
-        private readonly IProductTableRepository _tableRepository;
-        public Form1(IProductService service, IProductTableRepository tableRepository)
+        private readonly IProductTableService _tableService;
+        public Form1(IProductService service, IProductTableService tableService)
         {
             InitializeComponent();
             _service = service;
-            _tableRepository = tableRepository;
+            _tableService = tableService;
         }
 
         private void Form1_Load(object sender, EventArgs e)
@@ -24,7 +23,7 @@ namespace App.WinForms.ManualDI
         private void Reload()
         {
             dgvProducts.DataSource = _service.GetAll().ToList();
-            dgvProductsTable.DataSource = _tableRepository.GetAll();
+            dgvProductsTable.DataSource = _tableService.GetAll();
             dgvProductsTable.Columns["Id"].ReadOnly = true;
         }
 
@@ -104,7 +103,7 @@ namespace App.WinForms.ManualDI
                 }
             }
 
-            int count = _tableRepository.Update(table);
+            int count = _tableService.Update(table);
             MessageBox.Show($"{count} 件の変更を保存しました。");
             Reload();
         }

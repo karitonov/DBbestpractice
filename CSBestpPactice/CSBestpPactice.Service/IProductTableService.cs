@@ -1,16 +1,20 @@
 ﻿using System.Data;
 
-namespace CSBestpPactice.Infrastructure.Repositories.DataTables;
+namespace CSBestpPactice.Service;
 
-public interface IProductTableRepository
+public interface IProductTableService
 {
+    #region 同期
     DataTable GetAll();
     DataTable GetById(Guid id);
-    DataTable GetFeaturedProducts();
+    DataTable GetFeatured();
     int Update(DataTable table);
+    #endregion
 
+    #region 非同期
     Task<DataTable> GetAllAsync();
     Task<DataTable> GetByIdAsync(Guid id);
-    Task<DataTable> GetFeaturedProductsAsync();
+    Task<DataTable> GetFeaturedAsync();
     Task<int> UpdateAsync(DataTable table);
+    #endregion
 }

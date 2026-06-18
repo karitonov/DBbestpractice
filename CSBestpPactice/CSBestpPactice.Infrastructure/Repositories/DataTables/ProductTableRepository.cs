@@ -1,4 +1,5 @@
-﻿using CSBestpPactice.Infrastructure.Data;
+﻿using CSBestpPactice.Domain.Repositories;
+using CSBestpPactice.Infrastructure.Data;
 using CSBestpPactice.Infrastructure.Data.Sessions;
 using System.Data;
 
@@ -13,28 +14,16 @@ public sealed class ProductTableRepository : IProductTableRepository
         _session = session;
     }
 
+    #region 同期
     public DataTable GetAll()
     {
         var sql = "SELECT Id, Name, Description, UnitPrice, IsFeatured FROM Products";
         return Normalize(_session.QueryDataTable(sql));
     }
-
-    public async Task<DataTable> GetAllAsync()
-    {
-        var sql = "SELECT Id, Name, Description, UnitPrice, IsFeatured FROM Products";
-        return Normalize(await _session.QueryDataTableAsync(sql));
-    }
-
     public DataTable GetById(Guid id)
     {
         var sql = "SELECT Id, Name, Description, UnitPrice, IsFeatured FROM Products WHERE Id = @Id";
         return Normalize(_session.QueryDataTable(sql, DbParam.Of(("@Id", id.ToString()))));
-    }
-
-    public async Task<DataTable> GetByIdAsync(Guid id)
-    {
-        var sql = "SELECT Id, Name, Description, UnitPrice, IsFeatured FROM Products WHERE Id = @Id";
-        return Normalize(await _session.QueryDataTableAsync(sql, DbParam.Of(("@Id", id.ToString()))));
     }
 
     public DataTable GetFeaturedProducts()
@@ -42,50 +31,6 @@ public sealed class ProductTableRepository : IProductTableRepository
         var sql = "SELECT Id, Name, Description, UnitPrice, IsFeatured FROM Products WHERE IsFeatured = 1";
         return Normalize(_session.QueryDataTable(sql));
     }
-
-    public async Task<DataTable> GetFeaturedProductsAsync()
-    {
-        var sql = "SELECT Id, Name, Description, UnitPrice, IsFeatured FROM Products WHERE IsFeatured = 1";
-        return Normalize(await _session.QueryDataTableAsync(sql));
-    }
-
-    private static DataTable Normalize(DataTable table)
-    {
-        if (table.Rows.Count == 0) return table;
-
-        // Id: BLOB → GUID 文字列（値ベースで判定。列型は常に object）
-        if (table.Rows[0]["Id"] is byte[])
-        {
-            var idStr = new DataColumn("IdStr", typeof(string));
-            table.Columns.Add(idStr);
-            foreach (DataRow row in table.Rows)
-                row["IdStr"] = row["Id"] is byte[] b ? new Guid(b).ToString() : row["Id"];
-
-            table.PrimaryKey = [];
-            table.Columns.Remove("Id");
-            idStr.ColumnName = "Id";
-            idStr.SetOrdinal(0);
-        }
-
-        // IsFeatured: INTEGER(0/1) → bool（値ベースで判定）
-        if (table.Rows[0]["IsFeatured"] is not bool)
-        {
-            int ordinal = table.Columns["IsFeatured"]!.Ordinal;
-            var boolCol = new DataColumn("IsFeaturedBool", typeof(bool)) { DefaultValue = false };
-            table.Columns.Add(boolCol);
-            foreach (DataRow row in table.Rows)
-                row["IsFeaturedBool"] = Convert.ToBoolean(row["IsFeatured"]);
-
-            table.Columns.Remove("IsFeatured");
-            boolCol.ColumnName = "IsFeatured";
-            boolCol.SetOrdinal(ordinal);
-        }
-
-        table.AcceptChanges();
-        return table;
-    }
-
-    #region 同期UPDATE
     public int Update(DataTable table)
     {
         var changed = table.GetChanges();
@@ -120,17 +65,17 @@ public sealed class ProductTableRepository : IProductTableRepository
             """;
 
         return _session.Execute(sql, DbParam.Of(
-            ("@Id",          id),
-            ("@Name",        row["Name"]),
+            ("@Id", id),
+            ("@Name", row["Name"]),
             ("@Description", row["Description"]),
-            ("@UnitPrice",   row["UnitPrice"]),
-            ("@IsFeatured",  row["IsFeatured"])
+            ("@UnitPrice", row["UnitPrice"]),
+            ("@IsFeatured", row["IsFeatured"])
         ));
     }
 
     private int UpdateRow(DataRow row)
     {
-        var sql = 
+        var sql =
             """
             UPDATE Products
             SET Name = @Name, Description = @Description,
@@ -153,9 +98,29 @@ public sealed class ProductTableRepository : IProductTableRepository
             ("@Id", row["Id", DataRowVersion.Original])
         ));
     }
+
     #endregion
 
-    #region 非同期UPDATE
+    #region 非同期
+    public async Task<DataTable> GetAllAsync()
+    {
+        var sql = "SELECT Id, Name, Description, UnitPrice, IsFeatured FROM Products";
+        return Normalize(await _session.QueryDataTableAsync(sql));
+    }
+
+
+    public async Task<DataTable> GetByIdAsync(Guid id)
+    {
+        var sql = "SELECT Id, Name, Description, UnitPrice, IsFeatured FROM Products WHERE Id = @Id";
+        return Normalize(await _session.QueryDataTableAsync(sql, DbParam.Of(("@Id", id.ToString()))));
+    }
+
+    public async Task<DataTable> GetFeaturedProductsAsync()
+    {
+        var sql = "SELECT Id, Name, Description, UnitPrice, IsFeatured FROM Products WHERE IsFeatured = 1";
+        return Normalize(await _session.QueryDataTableAsync(sql));
+    }
+
     public async Task<int> UpdateAsync(DataTable table)
     {
         var changed = table.GetChanges();
@@ -221,6 +186,44 @@ public sealed class ProductTableRepository : IProductTableRepository
         return await _session.ExecuteAsync(sql, DbParam.Of(
             ("@Id", row["Id", DataRowVersion.Original])
         ));
+    }
+    #endregion
+
+    #region 共通
+    private static DataTable Normalize(DataTable table)
+    {
+        if (table.Rows.Count == 0) return table;
+
+        // Id: BLOB → GUID 文字列（値ベースで判定。列型は常に object）
+        if (table.Rows[0]["Id"] is byte[])
+        {
+            var idStr = new DataColumn("IdStr", typeof(string));
+            table.Columns.Add(idStr);
+            foreach (DataRow row in table.Rows)
+                row["IdStr"] = row["Id"] is byte[] b ? new Guid(b).ToString() : row["Id"];
+
+            table.PrimaryKey = [];
+            table.Columns.Remove("Id");
+            idStr.ColumnName = "Id";
+            idStr.SetOrdinal(0);
+        }
+
+        // IsFeatured: INTEGER(0/1) → bool（値ベースで判定）
+        if (table.Rows[0]["IsFeatured"] is not bool)
+        {
+            int ordinal = table.Columns["IsFeatured"]!.Ordinal;
+            var boolCol = new DataColumn("IsFeaturedBool", typeof(bool)) { DefaultValue = false };
+            table.Columns.Add(boolCol);
+            foreach (DataRow row in table.Rows)
+                row["IsFeaturedBool"] = Convert.ToBoolean(row["IsFeatured"]);
+
+            table.Columns.Remove("IsFeatured");
+            boolCol.ColumnName = "IsFeatured";
+            boolCol.SetOrdinal(ordinal);
+        }
+
+        table.AcceptChanges();
+        return table;
     }
     #endregion
 }

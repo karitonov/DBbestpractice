@@ -25,10 +25,11 @@ namespace App.WinForms.ManualDI
             var factory = new SqliteConnectionFactory(connectionString);
             var session = new DbSession(factory.CreateConnection());
             var repository = new ProductRepository(session);
-            var service = new ProductService(repository);
             var tableRepository = new ProductTableRepository(session);
+            var service = new ProductService(repository);
+            var tableService = new ProductTableService(tableRepository);
 
-            Application.Run(new Form1(service, tableRepository));
+            Application.Run(new Form1(service, tableService));
         }
     }
 }
