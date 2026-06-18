@@ -181,24 +181,32 @@ public sealed class DbSession : IDbSession
     {
         EnsureTransaction();
         _transaction!.Commit();
+        _transaction.Dispose();
+        _transaction = null;
     }
 
-    public Task CommitAsync()
+    public async Task CommitAsync()
     {
         EnsureTransaction();
-        return _transaction!.CommitAsync();
+        await _transaction!.CommitAsync();
+        await _transaction.DisposeAsync();
+        _transaction = null;
     }
 
     public void Rollback()
     {
         EnsureTransaction();
         _transaction!.Rollback();
+        _transaction.Dispose();
+        _transaction = null;
     }
 
-    public Task RollbackAsync()
+    public async Task RollbackAsync()
     {
         EnsureTransaction();
-        return _transaction!.RollbackAsync();
+        await _transaction!.RollbackAsync();
+        await _transaction.DisposeAsync();
+        _transaction = null;
     }
 
     public void ExecuteInTransaction(

@@ -75,15 +75,17 @@ public sealed class ProductTableRepository : IProductTableRepository
 
     private int UpdateRow(DataRow row)
     {
+        var id = (string)row["Id", DataRowVersion.Original];
         var sql =
             """
             UPDATE Products
             SET Name = @Name, Description = @Description,
                 UnitPrice = @UnitPrice, IsFeatured = @IsFeatured
-            WHERE Id = @Id
+            WHERE Id = @Id OR Id = @IdBlob
             """;
         return _session.Execute(sql, DbParam.Of(
-            ("@Id", row["Id", DataRowVersion.Original]),
+            ("@Id", id),
+            ("@IdBlob", Guid.Parse(id).ToByteArray()),
             ("@Name", row["Name"]),
             ("@Description", row["Description"]),
             ("@UnitPrice", row["UnitPrice"]),
@@ -93,9 +95,11 @@ public sealed class ProductTableRepository : IProductTableRepository
 
     private int DeleteRow(DataRow row)
     {
-        var sql = "DELETE FROM Products WHERE Id = @Id";
+        var id = (string)row["Id", DataRowVersion.Original];
+        var sql = "DELETE FROM Products WHERE Id = @Id OR Id = @IdBlob";
         return _session.Execute(sql, DbParam.Of(
-            ("@Id", row["Id", DataRowVersion.Original])
+            ("@Id", id),
+            ("@IdBlob", Guid.Parse(id).ToByteArray())
         ));
     }
 
@@ -107,7 +111,6 @@ public sealed class ProductTableRepository : IProductTableRepository
         var sql = "SELECT Id, Name, Description, UnitPrice, IsFeatured FROM Products";
         return Normalize(await _session.QueryDataTableAsync(sql));
     }
-
 
     public async Task<DataTable> GetByIdAsync(Guid id)
     {
@@ -164,15 +167,17 @@ public sealed class ProductTableRepository : IProductTableRepository
 
     private async Task<int> UpdateRowAsync(DataRow row)
     {
-        var sql = 
+        var id = (string)row["Id", DataRowVersion.Original];
+        var sql =
             """
             UPDATE Products
             SET Name = @Name, Description = @Description,
                 UnitPrice = @UnitPrice, IsFeatured = @IsFeatured
-            WHERE Id = @Id
+            WHERE Id = @Id OR Id = @IdBlob
             """;
         return await _session.ExecuteAsync(sql, DbParam.Of(
-            ("@Id", row["Id", DataRowVersion.Original]),
+            ("@Id", id),
+            ("@IdBlob", Guid.Parse(id).ToByteArray()),
             ("@Name", row["Name"]),
             ("@Description", row["Description"]),
             ("@UnitPrice", row["UnitPrice"]),
@@ -182,9 +187,11 @@ public sealed class ProductTableRepository : IProductTableRepository
 
     private async Task<int> DeleteRowAsync(DataRow row)
     {
-        var sql = "DELETE FROM Products WHERE Id = @Id";
+        var id = (string)row["Id", DataRowVersion.Original];
+        var sql = "DELETE FROM Products WHERE Id = @Id OR Id = @IdBlob";
         return await _session.ExecuteAsync(sql, DbParam.Of(
-            ("@Id", row["Id", DataRowVersion.Original])
+            ("@Id", id),
+            ("@IdBlob", Guid.Parse(id).ToByteArray())
         ));
     }
     #endregion

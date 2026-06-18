@@ -63,36 +63,38 @@ public sealed class ProductRepository : IProductRepository
 
     public void Update(Product entity)
     {
-        var sql = "UPDATE Products SET Name = @Name, Description = @Description, UnitPrice = @UnitPrice, IsFeatured = @IsFeatured WHERE Id = @Id";
+        var sql = "UPDATE Products SET Name = @Name, Description = @Description, UnitPrice = @UnitPrice, IsFeatured = @IsFeatured WHERE Id = @Id OR Id = @IdBlob";
         _session.Execute(sql, DbParam.Of(
             ("@Name",        entity.Name),
             ("@Description", entity.Description),
             ("@UnitPrice",   entity.UnitPrice),
             ("@IsFeatured",  entity.IsFeatured),
-            ("@Id",          entity.Id.ToString())));
+            ("@Id",          entity.Id.ToString()),
+            ("@IdBlob",      entity.Id.ToByteArray())));
     }
 
     public async Task UpdateAsync(Product entity)
     {
-        var sql = "UPDATE Products SET Name = @Name, Description = @Description, UnitPrice = @UnitPrice, IsFeatured = @IsFeatured WHERE Id = @Id";
+        var sql = "UPDATE Products SET Name = @Name, Description = @Description, UnitPrice = @UnitPrice, IsFeatured = @IsFeatured WHERE Id = @Id OR Id = @IdBlob";
         await _session.ExecuteAsync(sql, DbParam.Of(
             ("@Name",        entity.Name),
             ("@Description", entity.Description),
             ("@UnitPrice",   entity.UnitPrice),
             ("@IsFeatured",  entity.IsFeatured),
-            ("@Id",          entity.Id.ToString())));
+            ("@Id",          entity.Id.ToString()),
+            ("@IdBlob",      entity.Id.ToByteArray())));
     }
 
     public void Delete(Guid id)
     {
-        var sql = "DELETE FROM Products WHERE Id = @Id";
-        _session.Execute(sql, DbParam.Of(("@Id", id.ToString())));
+        var sql = "DELETE FROM Products WHERE Id = @Id OR Id = @IdBlob";
+        _session.Execute(sql, DbParam.Of(("@Id", id.ToString()), ("@IdBlob", id.ToByteArray())));
     }
 
     public async Task DeleteAsync(Guid id)
     {
-        var sql = "DELETE FROM Products WHERE Id = @Id";
-        await _session.ExecuteAsync(sql, DbParam.Of(("@Id", id.ToString())));
+        var sql = "DELETE FROM Products WHERE Id = @Id OR Id = @IdBlob";
+        await _session.ExecuteAsync(sql, DbParam.Of(("@Id", id.ToString()), ("@IdBlob", id.ToByteArray())));
     }
 
     public IReadOnlyList<Product> GetFeaturedProducts()
