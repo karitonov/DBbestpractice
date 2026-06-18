@@ -347,6 +347,24 @@ SQLite・PostgreSQL どちらでも同じコードが動く。
 | `App.Console` | Generic Host | `appsettings.json` | Console の標準的なアプローチ |
 | `App.Wpf` | Generic Host | `appsettings.json` | MVVM と組み合わせ |
 
+### 設定ファイル：`App.config` と `appsettings.json` の違い
+
+| 項目 | `App.config` | `appsettings.json` |
+|---|---|---|
+| 形式 | XML | JSON |
+| 主な対象 | .NET Framework（〜4.8） | .NET Core / .NET 5〜9 |
+| 配置・実体 | ビルド後 `<アプリ名>.exe.config` にコピーされる | そのまま出力ディレクトリにコピーされる |
+| 読み込み API | `ConfigurationManager`（`System.Configuration`） | `IConfiguration` / `ConfigurationBuilder`（`Microsoft.Extensions.Configuration`） |
+| 接続文字列 | `<connectionStrings>` 専用セクション。`ConfigurationManager.ConnectionStrings["名前"].ConnectionString` | 専用構文はなく `"ConnectionStrings": { "名前": "..." }` を慣習として使う |
+| 階層構造 | 基本フラット（`appSettings` / `connectionStrings` などセクション単位） | JSON なので任意の階層を自然に表現できる |
+| 型付け／バインディング | 文字列キー・値が基本（`ConfigurationManager.AppSettings["Key"]`） | `IConfiguration.Bind()` / `IOptions<T>` で POCO に直接マッピング可能 |
+| 環境別設定 | 標準機能なし（Web.config変換などが別途必要） | `appsettings.{Environment}.json` を環境変数で自動的に重ね合わせる仕組みが標準搭載 |
+| 設定ソースの統合 | ファイル単体が基本 | JSON・環境変数・コマンドライン引数・Secret Manager・Key Vault などを `ConfigurationBuilder` で重ね合わせ可能 |
+| 設計思想 | アプリ単位の静的な構成ファイル（.NET Framework 前提） | 複数ソースを階層的に合成する「設定プロバイダー」モデル |
+
+`App.WinForms.ManualDI` は `App.config`、それ以外のサンプルは `appsettings.json` を使っており、
+新旧2方式の設定ファイルを並べて比較できる構成にしている。
+
 ---
 
 ## DB アクセス方式比較
