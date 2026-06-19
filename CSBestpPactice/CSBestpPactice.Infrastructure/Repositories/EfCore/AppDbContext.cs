@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CSBestpPactice.Infrastructure.Repositories.EfCore;
 
-internal sealed class AppDbContext : DbContext
+public sealed class AppDbContext : DbContext
 {
     public DbSet<Product> Products { get; set; } = null!;
 

@@ -1,9 +1,10 @@
 using CSBestpPactice.Domain.Repositories;
 using CSBestpPactice.Infrastructure.Data.Factories;
 using CSBestpPactice.Infrastructure.Data.Sessions;
-using CSBestpPactice.Infrastructure.Repositories.AdoNet;
+using CSBestpPactice.Infrastructure.Repositories.Dapper;
 using CSBestpPactice.Infrastructure.Repositories.DataTables;
 using CSBestpPactice.Service;
+using Dapper;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -20,6 +21,9 @@ namespace App.WinForms.DIContainer
             // To customize application configuration such as set high DPI settings or default font,
             // see https://aka.ms/applicationconfiguration.
             ApplicationConfiguration.Initialize();
+
+            SqlMapper.AddTypeHandler(new GuidTypeHandler());
+            SqlMapper.AddTypeHandler(new DecimalTypeHandler());
 
             var configuration = new ConfigurationBuilder()
                 .SetBasePath(AppContext.BaseDirectory)

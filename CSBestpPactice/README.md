@@ -365,6 +365,42 @@ SQLite・PostgreSQL どちらでも同じコードが動く。
 `App.WinForms.ManualDI` は `App.config`、それ以外のサンプルは `appsettings.json` を使っており、
 新旧2方式の設定ファイルを並べて比較できる構成にしている。
 
+### ManualDI と DIContainer の組み立て方の違い
+
+```csharp
+// ManualDI（Program.cs）— その場で new して、結果（インスタンス）を次に渡す
+var factory    = new SqliteConnectionFactory(connectionString);
+var session    = new DbSession(factory.CreateConnection());
+var repository = new ProductRepository(session);
+var service    = new ProductService(repository);
+Application.Run(new Form1(service, tableService));
+
+// DIContainer（Program.cs）— 「作り方」（ラムダ式）だけを登録する
+services.AddSingleton<IDbConnectionFactory>(_ =>
+    new SqliteConnectionFactory(configuration.GetConnectionString("SQLite")!));
+services.AddSingleton<IDbSession>(sp =>
+    new DbSession(sp.GetRequiredService<IDbConnectionFactory>().CreateConnection()));
+services.AddTransient<IProductRepository, ProductRepository>();
+services.AddTransient<IProductService, ProductService>();
+services.AddSingleton<Form1>();
+
+using var provider = services.BuildServiceProvider();
+Application.Run(provider.GetRequiredService<Form1>());
+```
+
+ManualDI は呼び出し側が `new` の順序を1行ずつ手で管理する（`factory` → `session` → `repository` → `service` → `Form1`）。
+
+DIContainer は `AddSingleton`/`AddTransient` の**登録時点では何も `new` していない**。
+登録しているのは「`IDbConnectionFactory` が必要になったらこのラムダを実行する」という**作り方（ファクトリー）**だけ。
+実際に `new` が呼ばれる順序は、`provider.GetRequiredService<Form1>()` を呼んだ瞬間に、コンテナが `Form1` のコンストラクター引数 → その引数のコンストラクター引数 …と依存関係を逆向きにたどって自動的に決定する（登録した順序とは無関係）。
+
+| 観点 | ManualDI | DIContainer |
+|---|---|---|
+| `new` のタイミング | コードを書いた時点の順序通り、即時 | `GetRequiredService` を呼んだ瞬間（遅延実行） |
+| 順序の決定者 | 開発者が手で並べる | コンテナが依存関係グラフから自動決定 |
+| 登録の単位 | インスタンスそのもの（変数） | 「作り方」（型 または ラムダ） |
+| 依存の差し替え | コードを書き換える | 登録（`Add~`）を変えるだけ |
+
 ---
 
 ## DB アクセス方式比較
@@ -411,6 +447,61 @@ public IReadOnlyList<Product> GetAll()
 public IReadOnlyList<Product> GetAll()
     => _context.Products.ToList();
 ```
+
+### SQLite の動的型付けと Dapper の型ハンドラー（`SqlMapper.TypeHandler<T>`）
+
+SQLite は列に型を強制しない（動的型付け）。同じ列でも行ごとに格納形式（ストレージクラス）が変わることがある：
+
+| 列 | 行によって変わりうる格納形式 |
+|---|---|
+| `Id`（`Guid`） | `TEXT`（文字列）／`BLOB`（`byte[]`） |
+| `UnitPrice`（`decimal`） | `INTEGER`（`Int64`、小数部なし）／`REAL`（`double`、小数部あり） |
+
+ADO.NET（`AdoNet/ProductRepository`）が問題にならないのは、`reader.GetDecimal(...)` のようなメソッドが
+ドライバー側で格納形式を問わず指定した型に変換してくれるため。
+
+一方 Dapper（`conn.Query<Product>(sql)`）は、結果セットの**最初の行の型情報だけ**を見てその列専用の高速な変換コードを1度だけ生成する。
+最初の行が `REAL`（`double`）だった場合、後続の行が `INTEGER`（`Int64`）だと型変換に失敗し、次のような例外になる：
+
+```
+InvalidCastException: Unable to cast object of type 'System.Int64' to type 'System.Double'
+```
+
+対策として、`Dapper.SqlMapper.TypeHandler<T>` を継承した**型ハンドラー**を自作し、読み取り・書き込みの変換ロジックを差し替える：
+
+```csharp
+public sealed class GuidTypeHandler : SqlMapper.TypeHandler<Guid>
+{
+    // 読み取り（DB → C#）：BLOB（byte[]）でも TEXT（string）でも Guid に変換
+    public override Guid Parse(object value)
+        => value is byte[] bytes ? new Guid(bytes) : Guid.Parse(value.ToString()!);
+
+    // 書き込み（C# → DB）：常に文字列として保存
+    public override void SetValue(IDbDataParameter parameter, Guid value)
+        => parameter.Value = value.ToString();
+}
+
+public sealed class DecimalTypeHandler : SqlMapper.TypeHandler<decimal>
+{
+    // Convert.ToDecimal(object) は Int64 / double どちらでも decimal に変換できる
+    public override decimal Parse(object value)
+        => Convert.ToDecimal(value);
+
+    public override void SetValue(IDbDataParameter parameter, decimal value)
+        => parameter.Value = value;
+}
+```
+
+型ハンドラーは型ごとにプロセス全体で1つだけ有効（グローバル登録）。アプリ起動時、**最初に Dapper のクエリを実行する前**に1回だけ登録すればよい：
+
+```csharp
+// Program.cs の DI コンテナ構築より前
+SqlMapper.AddTypeHandler(new GuidTypeHandler());
+SqlMapper.AddTypeHandler(new DecimalTypeHandler());
+```
+
+登録後は `Repository` 側で `entity.Id.ToString()` のような手動変換が不要になり、`Id = entity.Id` とそのまま渡せる
+（`SetValue` が変換を担うため）。
 
 ---
 

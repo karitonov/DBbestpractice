@@ -6,7 +6,7 @@ using System.Data.Common;
 
 namespace CSBestpPactice.Infrastructure.Repositories.Dapper;
 
-internal sealed class ProductRepository : IProductRepository
+public sealed class ProductRepository : IProductRepository
 {
     private readonly IDbConnectionFactory _factory;
 
@@ -47,14 +47,14 @@ internal sealed class ProductRepository : IProductRepository
     {
         var sql = "SELECT Id, Name, Description, UnitPrice, IsFeatured FROM Products WHERE Id = @Id";
         using var conn = OpenConnection();
-        return conn.QuerySingleOrDefault<Product>(sql, new { Id = id.ToString() });
+        return conn.QuerySingleOrDefault<Product>(sql, new { Id = id });
     }
 
     public async Task<Product?> GetByIdAsync(Guid id)
     {
         var sql = "SELECT Id, Name, Description, UnitPrice, IsFeatured FROM Products WHERE Id = @Id";
         await using var conn = await OpenConnectionAsync();
-        return await conn.QuerySingleOrDefaultAsync<Product>(sql, new { Id = id.ToString() });
+        return await conn.QuerySingleOrDefaultAsync<Product>(sql, new { Id = id });
     }
 
     public void Add(Product entity)
@@ -63,7 +63,7 @@ internal sealed class ProductRepository : IProductRepository
         using var conn = OpenConnection();
         conn.Execute(sql, new
         {
-            Id = entity.Id.ToString(),
+            Id = entity.Id,
             Name = entity.Name,
             Description = entity.Description,
             UnitPrice = entity.UnitPrice,
@@ -77,7 +77,7 @@ internal sealed class ProductRepository : IProductRepository
         await using var conn = await OpenConnectionAsync();
         await conn.ExecuteAsync(sql, new
         {
-            Id = entity.Id.ToString(),
+            Id = entity.Id,
             Name = entity.Name,
             Description = entity.Description,
             UnitPrice = entity.UnitPrice,
@@ -91,7 +91,7 @@ internal sealed class ProductRepository : IProductRepository
         using var conn = OpenConnection();
         conn.Execute(sql, new
         {
-            Id = entity.Id.ToString(),
+            Id = entity.Id,
             Name = entity.Name,
             Description = entity.Description,
             UnitPrice = entity.UnitPrice,
@@ -105,7 +105,7 @@ internal sealed class ProductRepository : IProductRepository
         await using var conn = await OpenConnectionAsync();
         await conn.ExecuteAsync(sql, new
         {
-            Id = entity.Id.ToString(),
+            Id = entity.Id,
             Name = entity.Name,
             Description = entity.Description,
             UnitPrice = entity.UnitPrice,
@@ -117,14 +117,14 @@ internal sealed class ProductRepository : IProductRepository
     {
         var sql = "DELETE FROM Products WHERE Id = @Id";
         using var conn = OpenConnection();
-        conn.Execute(sql, new { Id = id.ToString() });
+        conn.Execute(sql, new { Id = id });
     }
 
     public async Task DeleteAsync(Guid id)
     {
         var sql = "DELETE FROM Products WHERE Id = @Id";
         await using var conn = await OpenConnectionAsync();
-        await conn.ExecuteAsync(sql, new { Id = id.ToString() });
+        await conn.ExecuteAsync(sql, new { Id = id });
     }
 
     public IReadOnlyList<Product> GetFeaturedProducts()
