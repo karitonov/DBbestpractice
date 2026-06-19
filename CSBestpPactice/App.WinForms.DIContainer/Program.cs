@@ -35,7 +35,7 @@ namespace App.WinForms.DIContainer
             services.AddTransient<IProductTableRepository, ProductTableRepository>();
             services.AddTransient<IProductService, ProductService>();
             services.AddTransient<IProductTableService, ProductTableService>();
-            services.AddTransient<Form1>();
+            services.AddSingleton<Form1>();
 
             using var provider = services.BuildServiceProvider();
             Application.Run(provider.GetRequiredService<Form1>());

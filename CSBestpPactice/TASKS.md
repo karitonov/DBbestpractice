@@ -72,12 +72,14 @@
 - ✅ `ProductTableRepository.Update(DataTable)` 追加（方針変更 #7）
 - ✅ DataTable ルートの CRUD 画面（`btnUpdate_Click` で `dgvProductsTable` から書き戻し、Name/UnitPrice 必須バリデーション付き）
 
-### ⬜ Step 5：App.WinForms.DIContainer
-- ⬜ プロジェクト作成
-- ⬜ `appsettings.json` 接続文字列設定
-- ⬜ `ServiceCollection` + `BuildServiceProvider()`
-- ⬜ `Program.cs`：DI コンテナ組み立て
-- ⬜ `MainForm`：商品一覧（DataGridView）
+### ✅ Step 5：App.WinForms.DIContainer
+- ✅ プロジェクト作成
+- ✅ `appsettings.json` 接続文字列設定
+- ✅ `ServiceCollection` + `BuildServiceProvider()`
+- ✅ `Program.cs`：DI コンテナ組み立て（`IDbSession` は `Singleton` 登録し、ManualDI と同様にアプリ全体で1接続を共有）
+- ✅ `Form1`：商品一覧（DataGridView）— エンティティルート / DataTable ルート並列表示
+- ✅ CRUD 機能（追加・編集・削除）— ADO.NET Repository ルート
+- ✅ DataTable ルートの CRUD 画面（`btnUpdate_Click` で `dgvProductsTable` から書き戻し）
 
 ### ⬜ Step 6：App.WinForms.Host
 - ⬜ プロジェクト作成
