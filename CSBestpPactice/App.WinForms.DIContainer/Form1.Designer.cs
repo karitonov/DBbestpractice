@@ -100,6 +100,7 @@
             btnAdd.TabIndex = 0;
             btnAdd.Text = "追加";
             btnAdd.UseVisualStyleBackColor = true;
+            btnAdd.Click += btnAdd_Click;
             // 
             // btnEdit
             // 
@@ -109,6 +110,7 @@
             btnEdit.TabIndex = 1;
             btnEdit.Text = "編集";
             btnEdit.UseVisualStyleBackColor = true;
+            btnEdit.Click += btnEdit_Click;
             // 
             // btnDelete
             // 
@@ -118,6 +120,7 @@
             btnDelete.TabIndex = 2;
             btnDelete.Text = "削除";
             btnDelete.UseVisualStyleBackColor = true;
+            btnDelete.Click += btnDelete_Click;
             // 
             // btnUpdate
             // 
@@ -127,6 +130,7 @@
             btnUpdate.TabIndex = 3;
             btnUpdate.Text = "更新";
             btnUpdate.UseVisualStyleBackColor = true;
+            btnUpdate.Click += btnUpdate_Click;
             // 
             // Form1
             // 
@@ -136,6 +140,7 @@
             Controls.Add(tableLayoutPanel1);
             Name = "Form1";
             Text = "Form1";
+            Load += Form1_Load;
             tableLayoutPanel1.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)dgvProductsTable).EndInit();
             ((System.ComponentModel.ISupportInitialize)dgvProducts).EndInit();
