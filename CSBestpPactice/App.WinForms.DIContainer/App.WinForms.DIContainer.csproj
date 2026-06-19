@@ -12,4 +12,10 @@
     <ProjectReference Include="..\CSBestpPactice.Service\CSBestpPactice.Service.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Update="ProductEditForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+  </ItemGroup>
+
 </Project>
