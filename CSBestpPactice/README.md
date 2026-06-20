@@ -391,6 +391,38 @@ SQLite・PostgreSQL どちらでも同じコードが動く。
 前者はビルダーパターンで設定をコールバックとして積み重ね、複数の拡張メソッドが `ConfigureServices` を呼び合うような合成・拡張性を重視した従来スタイル。
 後者は `ASP.NET Core` の `WebApplication.CreateBuilder()` と同系統で、プロパティに直接アクセスできる分コードは短くなるが、`IHostBuilder` 前提のサードパーティ拡張は使えない。
 
+**`HostMinimal` のコードは `DIContainer` に似る：** `CreateApplicationBuilder()` はそもそも「`IHostBuilder` のコールバック越しの間接的な登録をやめて、`ServiceCollection` を直接触る感覚に近づける」ために作られたAPI。
+そのため `builder.Services.AddXxx(...)` を手続き的に並べる書き方になり、結果として `DIContainer`（`new ServiceCollection()` → `services.AddXxx(...)`）に近い見た目になる。
+位置づけとしては「`DIContainer` の素朴さ」＋「`HostDI` が持つ設定ファイル統合・ホストのライフサイクル管理（`appsettings.json` 自動読み込み、`IHost` によるロギング統合等）」の中間にあたる。
+
+#### コピー時の落とし穴：`appsettings.json` のコピー設定と `SubType=Form`
+
+`App.WinForms.HostDI` のフォルダをコピーして `App.WinForms.HostMinimal` を作る場合、`.csproj` の `<ItemGroup>` はファイルのコピーでは引き継がれない（同じ名前の新規 `.csproj` が生成されるだけで、中身は空に近い既定値になる）。
+特に次の2点は機能・体験に直結するため、コピー後に手動で追加し直す必要がある：
+
+```xml
+<ItemGroup>
+  <Compile Update="ProductEditForm.cs">
+    <SubType>Form</SubType>
+  </Compile>
+</ItemGroup>
+
+<ItemGroup>
+  <None Update="appsettings.json">
+    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+  </None>
+</ItemGroup>
+```
+
+- **`<None Update="appsettings.json">`（必須）**：これが無いとビルド時に `appsettings.json` が `bin/Debug/...` にコピーされない。
+  Generic Host は設定ファイルが見つからなくても例外を出さず（`optional` 扱い）素通りするため、`GetConnectionString("SQLite")` が `null` を返す。
+  `!`（null許容演算子）はコンパイラへの「nullではない」という宣言であって実行時チェックではないため、そのまま `null` が `SqliteConnectionFactory` や `UseSqlite` に渡り、その時点で例外になる。
+  `HostMinimal` が「動かない」と感じた原因はこれだった。
+- **`<Compile Update="ProductEditForm.cs"><SubType>Form</SubType></Compile>`（任意）**：ビルド・実行には影響しない、Visual Studio の編集体験のみに関わる設定。
+  付けておくと、ソリューションエクスプローラーで `ProductEditForm.cs` をダブルクリックしたときにコードではなく**フォームデザイナー画面**が開くようになる。
+  この設定は通常「新しい項目の追加 → Windows フォーム」のテンプレートから作成すると Visual Studio が自動で `.csproj` に書き込むため、
+  ファイルをコピーして作った `ProductEditForm.cs` には付いてこなかった。
+
 #### 名前空間の衝突に注意：プロジェクト名を `*.Host` にすると `Host` クラスが隠れる
 
 このプロジェクトは元々 `App.WinForms.Host` という名前だったが、以下のコンパイルエラーが出たため `App.WinForms.HostDI` に改名した。
