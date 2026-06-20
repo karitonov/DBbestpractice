@@ -1,15 +1,15 @@
 using CSBestpPactice.Domain.Repositories;
 using CSBestpPactice.Infrastructure.Data.Factories;
 using CSBestpPactice.Infrastructure.Data.Sessions;
-using CSBestpPactice.Infrastructure.Repositories.DataTables;
 using AdoNet = CSBestpPactice.Infrastructure.Repositories.AdoNet;
-using Dapper = CSBestpPactice.Infrastructure.Repositories.Dapper;
+using DapperRepo = CSBestpPactice.Infrastructure.Repositories.Dapper;
 using EfCore = CSBestpPactice.Infrastructure.Repositories.EfCore;
 using CSBestpPactice.Service;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using CSBestpPactice.Infrastructure.Repositories.AdoNet;
 
 namespace App.WinForms.HostDI
 {

@@ -3,7 +3,7 @@ using CSBestpPactice.Infrastructure.Data;
 using CSBestpPactice.Infrastructure.Data.Sessions;
 using System.Data;
 
-namespace CSBestpPactice.Infrastructure.Repositories.DataTables;
+namespace CSBestpPactice.Infrastructure.Repositories.AdoNet;
 
 public sealed class ProductTableRepository : IProductTableRepository
 {

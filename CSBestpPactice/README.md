@@ -440,10 +440,37 @@ services.AddTransient<IProductRepository, EfCore.ProductRepository>(); // OK
 ```
 
 これで `EfCore` という名前を「`CSBestpPactice.Infrastructure.Repositories.EfCore` の別名」として明示的に登録できる。
-`AdoNet.ProductRepository` や `Dapper.ProductRepository` も同じファイルで併用したくなった場合に、
-無印の `using ...EfCore;`（型を直接取り込む）では1つの名前空間しか同時に持ち込めないが、
-エイリアス方式なら複数の実装を `AdoNet.ProductRepository` / `Dapper.ProductRepository` / `EfCore.ProductRepository` と
-書き分けられる。
+`HostDI`（EF Core ルート）に限らず、`ManualDI`（ADO.NET ルート）・`DIContainer`（Dapper ルート）にも
+同じ考え方を適用し、`new ProductRepository(...)` のような無印参照をすべて「どの実装由来か」が分かる
+接頭辞付き参照に統一した：
+
+```csharp
+// ManualDI
+using AdoNet = CSBestpPactice.Infrastructure.Repositories.AdoNet;
+var repository = new AdoNet.ProductRepository(session);
+
+// DIContainer
+using DapperRepo = CSBestpPactice.Infrastructure.Repositories.Dapper;
+services.AddTransient<IProductRepository, DapperRepo.ProductRepository>();
+
+// HostDI
+using EfCore = CSBestpPactice.Infrastructure.Repositories.EfCore;
+services.AddTransient<IProductRepository, EfCore.ProductRepository>();
+```
+
+ここで `DIContainer` だけエイリアス名が `Dapper` ではなく `DapperRepo` になっている点に注意。
+`using Dapper = CSBestpPactice.Infrastructure.Repositories.Dapper;` と書くと、
+**NuGet の Dapper ライブラリ自身が持つ `Dapper` という実在の名前空間とエイリアス名が衝突し**、次のコンパイルエラーになる（実際に発生・確認済み）：
+
+```
+error CS0576: 名前空間 '<global namespace>' は、エイリアス 'Dapper' と競合する定義を含んでいます
+```
+
+この衝突は「[名前空間の衝突に注意](#名前空間の衝突に注意プロジェクト名をhostにするとhostクラスが隠れる)」の `App.WinForms.Host` の件とは少し異なり、
+`using Dapper;`（`SqlMapper` を使うための取り込み）が**あるかどうかに関係なく**、
+参照アセンブリに実在する名前空間と同名のエイリアスは定義できないというルールによるもの。
+そのためエイリアス名そのものを `DapperRepo` のように変えて回避する必要がある
+（一方 `AdoNet` ・`EfCore` はそういう実在の同名ライブラリがないため、サブ名前空間そのままの名前で問題なく使える）。
 
 ### 設定ファイル：`App.config` と `appsettings.json` の違い
 
@@ -521,6 +548,74 @@ DIContainer は `AddSingleton`/`AddTransient` の**登録時点では何も `new
 | マイグレーション | なし | なし | `dotnet ef migrations add` |
 | SQL の制御 | 完全 | 完全 | LINQ 経由（生 SQL も可） |
 | 学習コスト | 高 | 低〜中 | 中 |
+
+### なぜ「注入するもの」がライブラリごとに違うのか
+
+`IProductRepository` という同じ契約を実装していても、3つの `ProductRepository` が要求するコンストラクター引数はそれぞれ違う。
+これは各ライブラリが「DB接続をどう抽象化しているか」という設計思想そのものが異なるため：
+
+- **ADO.NET**（`IDbSession`）：自作の薄いラッパー。`DbConnection`/`DbCommand`を直接操作するための土台で、トランザクション管理もここに集約している。
+- **Dapper**（`IDbConnectionFactory`）：Dapper は ADO.NET の `IDbConnection` に対する**拡張メソッド集**にすぎず、独自の接続管理機構を持たない。そのため `IDbSession` を介さず、直接コネクションを作って `conn.Query<T>(...)` を呼ぶだけで足りる。
+- **EF Core**（`AppDbContext`）：`DbContext` 自体が「コネクション管理＋変更追跡＋Unit of Work」を内包した独立した抽象化。ライブラリの設計として生のADO.NETコネクションを直接触らせない（`DbContext`の中に隠蔽する）ため、`IDbSession`という共通の土台には乗らない。
+
+ADO.NETとDapperは同じADO.NET基盤の上に立っているため依存の形が近く、EF Coreだけ独立しているのはこのため
+（`App.WinForms.ManualDI`の `Program.cs` でADO.NET／Dapper／EfCoreの3ルートを切り替えて試すと、EF Coreだけ
+`IDbSession`ではなく`DbContextOptionsBuilder<AppDbContext>().UseSqlite(...).Options`から`AppDbContext`を組み立てる必要があり、
+他の2つと書き方が大きく変わることで実感できる）。
+
+### ADO.NET 以外でのトランザクションの実現方法
+
+「実装の対比」表の `トランザクション` 行にある通り、3つのライブラリでトランザクションの扱い方はそれぞれ異なる：
+
+- **ADO.NET**：`IDbSession.ExecuteInTransaction` / `ExecuteInTransactionAsync` という自作の薄いラッパーで包む。
+  実例は `AdoNet/ProductTableRepository.cs` の `Update(DataTable)` メソッド — 複数行の Insert/Update/Delete を
+  1つのトランザクションにまとめて `_session.ExecuteInTransaction(() => { ... })` の中で実行している。
+- **Dapper**：トランザクション管理の機構そのものを持たない。Dapper は ADO.NET の `DbConnection` に対する
+  拡張メソッド集にすぎないため、`conn.BeginTransaction()` で生成した `DbTransaction` を**呼び出し側が自分で**
+  各 `Execute`/`Query` 呼び出しの `transaction:` 引数に明示的に渡す必要がある。
+  `Dapper/ProductRepository.cs` の `UpdateMany` / `UpdateManyAsync` はこのパターンのデモで、
+  現時点の単発 CRUD メソッド（`Add`/`Update`/`Delete` 等）では使っていないが、複数行をまとめて更新する場面で
+  使えるよう用意してある：
+
+  ```csharp
+  public int UpdateMany(IEnumerable<Product> entities)
+  {
+      using var conn = OpenConnection();
+      using var transaction = conn.BeginTransaction();
+      try
+      {
+          var count = 0;
+          foreach (var entity in entities)
+              count += conn.Execute(sql, entity, transaction: transaction);
+
+          transaction.Commit();
+          return count;
+      }
+      catch
+      {
+          transaction.Rollback();
+          throw;
+      }
+  }
+  ```
+
+- **EF Core**：`DbContext.SaveChanges()` / `SaveChangesAsync()` が、保留中の変更をすべて**暗黙のトランザクション**で
+  自動的に包む（EF Core 3.0 以降の標準動作）。コード上にトランザクション境界は出てこないが、内部的には
+  `Add`/`Update`/`Remove` で溜めた変更が `SaveChanges()` の呼び出し1回で全てコミットされる仕組み。
+
+### なぜ `ProductTableRepository`（DataTable ルート）は ADO.NET 形式だけなのか
+
+`DataTable`（`System.Data`）は、.NET Framework 初期の ADO.NET 時代に「切断されたデータセット」を表すために作られた型で、
+DapperやEF Coreとは相性が悪い：
+
+- **Dapper**：行をPOCOや`dynamic`にマッピングする専門ライブラリで、`DataTable`を組み立てる機能を持たない。`DataTable`が欲しければ
+  結局自分で詰め直すコードを書く必要があり、実質ADO.NETの`DataReader`手動読み込みと同じ作業になってしまう。
+- **EF Core**：`DbSet<T>`によるエンティティ追跡が中心で、`DataTable`へのマッピング機能は提供していない。生の`DbDataReader`を
+  取り出すには`Database.GetDbConnection()`まで降りる必要があり、EF Coreの流儀から外れる。
+
+つまり `DataTable` ルートは「ADO.NETの生のデータアクセスをそのまま使う」という前提に強く結びついた概念で、
+DapperやEF Coreで再現しようとしても「ADO.NETを別の皮を被って書き直す」だけになり、デモとして比較する意味がない
+（方針変更 #7 で「`SqliteDataAdapter`が無いので`IDbSession`を使った手動実装に集約した」と記録した経緯と同根）。
 
 ### コード量の対比（`GetAll` の例）
 

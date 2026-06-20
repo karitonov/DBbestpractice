@@ -113,6 +113,66 @@ public sealed class ProductRepository : IProductRepository
         });
     }
 
+    // Dapper自体はトランザクション管理機構を持たないため、IDbTransactionを生成して
+    // 各Executeに明示的に渡すことで複数文を1トランザクションにまとめる。
+    public int UpdateMany(IEnumerable<Product> entities)
+    {
+        var sql = "UPDATE Products SET Name = @Name, Description = @Description, UnitPrice = @UnitPrice, IsFeatured = @IsFeatured WHERE Id = @Id";
+        using var conn = OpenConnection();
+        using var transaction = conn.BeginTransaction();
+        try
+        {
+            var count = 0;
+            foreach (var entity in entities)
+            {
+                count += conn.Execute(sql, new
+                {
+                    Id = entity.Id,
+                    Name = entity.Name,
+                    Description = entity.Description,
+                    UnitPrice = entity.UnitPrice,
+                    IsFeatured = entity.IsFeatured
+                }, transaction: transaction);
+            }
+            transaction.Commit();
+            return count;
+        }
+        catch
+        {
+            transaction.Rollback();
+            throw;
+        }
+    }
+
+    public async Task<int> UpdateManyAsync(IEnumerable<Product> entities)
+    {
+        var sql = "UPDATE Products SET Name = @Name, Description = @Description, UnitPrice = @UnitPrice, IsFeatured = @IsFeatured WHERE Id = @Id";
+        await using var conn = await OpenConnectionAsync();
+        await using var transaction = await conn.BeginTransactionAsync();
+        try
+        {
+            var count = 0;
+            foreach (var entity in entities)
+            {
+                count += await conn.ExecuteAsync(sql, new
+                {
+                    Id = entity.Id,
+                    Name = entity.Name,
+                    Description = entity.Description,
+                    UnitPrice = entity.UnitPrice,
+                    IsFeatured = entity.IsFeatured
+                }, transaction: transaction);
+            }
+            await transaction.CommitAsync();
+            return count;
+        }
+        catch
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
+    }
+
     public void Delete(Guid id)
     {
         var sql = "DELETE FROM Products WHERE Id = @Id";
