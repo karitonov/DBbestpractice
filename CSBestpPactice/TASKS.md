@@ -81,12 +81,21 @@
 - ✅ CRUD 機能（追加・編集・削除）— ADO.NET Repository ルート
 - ✅ DataTable ルートの CRUD 画面（`btnUpdate_Click` で `dgvProductsTable` から書き戻し）
 
-### ⬜ Step 6：App.WinForms.Host
+### 🔄 Step 6：App.WinForms.HostDI
+- ✅ プロジェクト作成（`App.WinForms.Host` から `App.WinForms.HostDI` に改名。`Host` 単体だと `Microsoft.Extensions.Hosting.Host` クラスと名前空間が衝突するため）
+- ✅ `appsettings.json` 接続文字列設定
+- ✅ `IHostBuilder` + WinForms 統合パターン（`Host.CreateDefaultBuilder().UseContentRoot(AppContext.BaseDirectory)...Build()` → `Application.Run(host.Services.GetRequiredService<Form1>())`）
+- ✅ `Program.cs`：Generic Host 組み立て（EF Core ルート。`AddDbContext<AppDbContext>` は既定の `Scoped` ではなく明示的に `Singleton` 指定し、他サンプルと同様にアプリ全体で1接続を共有）
+- ✅ `Form1`：商品一覧（DataGridView）— エンティティルート（EF Core）/ DataTable ルート並列表示
+- ⬜ CRUD 機能（追加・編集・削除）— 動作確認
+- ⬜ DataTable ルートの CRUD 画面の動作確認
+
+### ⬜ Step 6b：App.WinForms.HostMinimal
 - ⬜ プロジェクト作成
 - ⬜ `appsettings.json` 接続文字列設定
-- ⬜ `IHostBuilder` + WinForms 統合パターン
-- ⬜ `Program.cs`：Generic Host 組み立て
-- ⬜ `MainForm`：商品一覧（DataGridView）
+- ⬜ `Host.CreateApplicationBuilder()`（`HostApplicationBuilder`、ミニマルホスティングモデル）+ WinForms 統合パターン
+- ⬜ `Program.cs`：`builder.Services` / `builder.Configuration` に直接アクセスする組み立て方を `HostDI`（`IHostBuilder` + `ConfigureServices` コールバック方式）と比較
+- ⬜ `Form1`：商品一覧（DataGridView）
 
 ### ⬜ Step 7：App.Console
 - ⬜ プロジェクト作成

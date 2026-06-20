@@ -17,7 +17,8 @@ CSBestpPactice.slnx
 ├── App.Console                      コンソール + Generic Host + appsettings.json
 ├── App.WinForms.ManualDI            WinForms + 手動 DI + App.config
 ├── App.WinForms.DIContainer         WinForms + ServiceCollection（Host なし）
-├── App.WinForms.Host                WinForms + Generic Host + appsettings.json
+├── App.WinForms.HostDI              WinForms + Generic Host（IHostBuilder） + appsettings.json
+├── App.WinForms.HostMinimal         WinForms + Generic Host（HostApplicationBuilder） + appsettings.json
 └── App.Wpf                          WPF + Generic Host + appsettings.json
 ```
 
@@ -339,13 +340,110 @@ SQLite・PostgreSQL どちらでも同じコードが動く。
 
 ## DI アプローチ比較
 
+### なぜこんなにバリエーションがあるのか：.NET の進化の歴史
+
+`ManualDI` → `DIContainer` → `HostDI` という3段階の構成は、.NET が DI・設定の仕組みを
+「個別管理」→「コンテナ化」→「ホスト統合」へと進化させてきた歴史をそのまま縮図にしたもの。
+
+| 年 | バージョン | 主な変更 | このプロジェクトでの対応 |
+|---|---|---|---|
+| 2002〜2016 | .NET Framework 1.0〜4.8 | 標準DIコンテナなし。`App.config` + `ConfigurationManager`が唯一の設定手段 | `ManualDI`（`App.config`、手動 `new`） |
+| 2016 | .NET Core 1.0 | ASP.NET Core専用に `IServiceCollection` / `appsettings.json` を導入（Web限定） | — |
+| 2017 | .NET Core 2.0 | DI・設定の仕組みがASP.NET Core外でも単体NuGetパッケージとして使えるよう分離 | `DIContainer`（`ServiceCollection` 単体、Host なし） |
+| 2018 | .NET Core 2.1 | **Generic Host**（`IHostBuilder`）登場。Web以外（Console/Worker）でもDI＋設定＋ロギングを統一管理 | `HostDI`（`CreateDefaultBuilder`） |
+| 2019 | .NET Core 3.0 | Worker Service テンプレートが正式化、Generic Host がバックグラウンドサービスの標準形に | — |
+| 2020 | .NET 5 | .NET Framework／.NET Core／Mono が統合。Generic Host がアプリ種別を問わない標準ホスティングモデルとして定着 | — |
+| 2021 | .NET 6 | ASP.NET Core にミニマルホスティングモデル（`WebApplication.CreateBuilder()`）＋トップレベルステートメント登場 | — |
+| 2022 | .NET 7 | `Host.CreateApplicationBuilder()` でミニマルホスティングモデルが非Webアプリにも拡大。Native AOT対応も強化 | `HostMinimal`（`CreateApplicationBuilder`） |
+| 2023〜 | .NET 8 | Native AOT全面対応。新規 Console/Worker プロジェクトの既定が `HostApplicationBuilder` 系に | — |
+
+変化の軸は大きく2つ：
+
+1. **設定ファイル**：XML（`App.config`、固定セクション）→ JSON（`appsettings.json`、複数ソースを階層的に合成できる `IConfiguration` モデル）
+2. **DIコンテナ**：標準搭載なし（自分で `new`、または外部コンテナ）→ ASP.NET Core専用の軽量コンテナ → Web以外にも切り出された Generic Host → ボイラープレートを削った「ミニマルホスティングモデル」
+
+**WinForms 特有の捻れ：** ASP.NET Core や Worker Service は元々「ホスト（起動・終了・DI・設定を司る土台）」を必要とするアプリ形態だった。
+一方 WinForms/WPF は `Application.Run(new Form())` という独自のメッセージループを持ち、もともと「ホスト」という概念が存在しない。
+`App.WinForms.HostDI` でやっていることは、本来 Web/Worker サービス向けに設計された Generic Host の枠組みを、WinForms の世界に**後付けで持ち込む**作業であり、
+`host.Run()`（Web側の待ち受けループ）ではなく `Application.Run(host.Services.GetRequiredService<Form1>())` で WinForms のメッセージループに橋渡しする必要がある。
+
 | サンプル | DI 方式 | 設定ファイル | 特徴 |
 |---|---|---|---|
 | `App.WinForms.ManualDI` | 手動 DI | `App.config` | 最もシンプル。依存関係が `new` で見える |
 | `App.WinForms.DIContainer` | `ServiceCollection` | `appsettings.json` | Host なし。コンテナだけ使う |
-| `App.WinForms.Host` | Generic Host | `appsettings.json` | ライフタイム・ロギング・設定を一括管理 |
+| `App.WinForms.HostDI` | Generic Host（`IHostBuilder`） | `appsettings.json` | `CreateDefaultBuilder` + `ConfigureServices` コールバック方式 |
+| `App.WinForms.HostMinimal` | Generic Host（`HostApplicationBuilder`） | `appsettings.json` | `CreateApplicationBuilder` + `builder.Services` 直接アクセス方式 |
 | `App.Console` | Generic Host | `appsettings.json` | Console の標準的なアプローチ |
 | `App.Wpf` | Generic Host | `appsettings.json` | MVVM と組み合わせ |
+
+### Generic Host の2つの組み立て方：`CreateDefaultBuilder` と `CreateApplicationBuilder`
+
+| 項目 | `Host.CreateDefaultBuilder()` | `Host.CreateApplicationBuilder()` |
+|---|---|---|
+| 戻り値 | `IHostBuilder` | `HostApplicationBuilder` |
+| 導入時期 | .NET Core 2.1〜 | .NET 7〜（ミニマルホスティングモデル） |
+| サービス登録 | `ConfigureServices((context, services) => {...})` のコールバック内 | `builder.Services.AddSingleton<>()` を直接呼ぶ |
+| 設定アクセス | コールバック内の `context.Configuration` | `builder.Configuration` に直接アクセス |
+| 実行タイミング | 遅延（`Build()` 時にコールバックがまとめて実行される） | 即時（プロパティを触った瞬間に反映） |
+| `IHostBuilder` 実装 | する | しない（独立した型のため、`IHostBuilder` 前提の拡張メソッドが使えない場合がある） |
+
+`App.WinForms.HostDI` では `CreateDefaultBuilder()`（`IHostBuilder` を返す方）を採用し、`App.WinForms.HostMinimal` では `CreateApplicationBuilder()` を採用する。
+前者はビルダーパターンで設定をコールバックとして積み重ね、複数の拡張メソッドが `ConfigureServices` を呼び合うような合成・拡張性を重視した従来スタイル。
+後者は `ASP.NET Core` の `WebApplication.CreateBuilder()` と同系統で、プロパティに直接アクセスできる分コードは短くなるが、`IHostBuilder` 前提のサードパーティ拡張は使えない。
+
+#### 名前空間の衝突に注意：プロジェクト名を `*.Host` にすると `Host` クラスが隠れる
+
+このプロジェクトは元々 `App.WinForms.Host` という名前だったが、以下のコンパイルエラーが出たため `App.WinForms.HostDI` に改名した。
+
+```csharp
+namespace App.WinForms.Host;
+// ...
+Host.CreateDefaultBuilder() // ← コンパイルエラー（CS0234）
+```
+
+C# の名前解決では、`using` ディレクティブより「同じ階層にある名前空間メンバー」が先に解決される。
+`App.WinForms.Host` という名前空間自体が `App.WinForms` の子である `Host` として先に見つかってしまい、
+`using Microsoft.Extensions.Hosting;` で取り込んだ `Host` クラスより優先されてしまう。
+`using` エイリアス（`using Host = Microsoft.Extensions.Hosting.Host;`）でも解決しない（名前空間メンバーの解決が `using` より先に行われるため）。
+
+改名してしまえば（`HostDI` は `Host` と完全に別の識別子なので）`Host.CreateDefaultBuilder()` をそのまま書ける。
+改名せずに `*.Host` のままにしたい場合は、呼び出し箇所を完全修飾する対処法もある：
+
+```csharp
+using IHost host = Microsoft.Extensions.Hosting.Host.CreateDefaultBuilder()
+    .UseContentRoot(AppContext.BaseDirectory)
+    // ...
+    .Build();
+```
+
+#### 名前空間エイリアスで「接頭辞付き」の型参照にする
+
+同名クラス（`ProductRepository` は `AdoNet` / `Dapper` / `EfCore` の3つの名前空間にそれぞれ存在する）を
+同じファイルで扱いたい、あるいは「どの実装由来か」をコード上で明示したいとき、次のような書き方を試したくなる：
+
+```csharp
+using CSBestpPactice.Infrastructure.Repositories; // 親の名前空間を using
+
+services.AddTransient<IProductRepository, EfCore.ProductRepository>(); // ← コンパイルエラー（CS0246）
+```
+
+これは**コンパイルできない**。`using` ディレクティブが取り込むのは、その名前空間に**直接定義されている型**だけで、
+さらに下位の名前空間（`Repositories` の子である `EfCore`）の名前を自動的に短縮してくれるわけではないため。
+（[名前空間の衝突に注意](#名前空間の衝突に注意プロジェクト名をhostにするとhostクラスが隠れる)で説明した「囲んでいる名前空間メンバーの解決」とは別の仕組みで、こちらは `using` では解決しない）
+
+正しくは**名前空間エイリアス**を使う：
+
+```csharp
+using EfCore = CSBestpPactice.Infrastructure.Repositories.EfCore;
+// ...
+services.AddTransient<IProductRepository, EfCore.ProductRepository>(); // OK
+```
+
+これで `EfCore` という名前を「`CSBestpPactice.Infrastructure.Repositories.EfCore` の別名」として明示的に登録できる。
+`AdoNet.ProductRepository` や `Dapper.ProductRepository` も同じファイルで併用したくなった場合に、
+無印の `using ...EfCore;`（型を直接取り込む）では1つの名前空間しか同時に持ち込めないが、
+エイリアス方式なら複数の実装を `AdoNet.ProductRepository` / `Dapper.ProductRepository` / `EfCore.ProductRepository` と
+書き分けられる。
 
 ### 設定ファイル：`App.config` と `appsettings.json` の違い
 
@@ -502,6 +600,48 @@ SqlMapper.AddTypeHandler(new DecimalTypeHandler());
 
 登録後は `Repository` 側で `entity.Id.ToString()` のような手動変換が不要になり、`Id = entity.Id` とそのまま渡せる
 （`SetValue` が変換を担うため）。
+
+### EF Core での同じ問題：`HasConversion<string>()` の落とし穴
+
+`HostDI`（EF Core ルート）でも同じ BLOB/TEXT 混在の影響を受けた。`AppDbContext.OnModelCreating` で
+`entity.Property(p => p.Id).HasConversion<string>();` と明示すると、EF Core は「常に文字列として読む」コードを
+生成してしまい、`Id` が `BLOB` 格納の行（過去に ADO.NET 経由で書き込まれた行）に対して
+`System.FormatException: Unrecognized Guid format.` が発生した（生バイト列を文字列としてパースしようとして失敗）。
+
+```csharp
+// NG：常に GetString() 相当のコードが生成され、BLOB 行で例外になる
+entity.Property(p => p.Id).HasConversion<string>();
+
+// OK：変換指定を省略し、Microsoft.Data.Sqlite 標準の Guid 読み取りに任せる
+entity.HasKey(p => p.Id);
+```
+
+`Microsoft.Data.Sqlite` は `Guid` 列を読むとき、列の実際のストレージクラス（`BLOB`/`TEXT`）を見て
+自動的に読み取り方法を振り分ける機能を標準で持っている。Dapper や ADO.NET の素のメソッドにはこの振り分けがないため
+自分で `ReadGuid` ヘルパーや `TypeHandler` を書く必要があったが、EF Core + Microsoft.Data.Sqlite の組み合わせでは
+**変換を明示しない方がむしろ安全**という結果になった。「型変換を明示的に書けば安全」とは限らない一例。
+
+### コラム：GUID と UUID の違い
+
+結論：**仕様としては同じもの**。`UUID`（Universally Unique Identifier）は IETF が定めた標準の名称（RFC 4122 / 現在は RFC 9562）で、
+`GUID`（Globally Unique Identifier）は Microsoft がほぼ同じ仕組みを採用したときに使った呼び名。
+128bit（16バイト）の値であること、`8-4-4-4-12` 桁の16進数文字列で表すこと（例：`550e8400-e29b-41d4-a716-446655440000`）は共通。
+
+実務上ハマりやすい違いは1点だけ：**バイト配列に変換したときのバイト順（エンディアン）**。
+
+| | 先頭3グループ（8桁-4桁-4桁） | 末尾2グループ（4桁-12桁） |
+|---|---|---|
+| .NET の `Guid.ToByteArray()` | リトルエンディアン | ビッグエンディアン（バイト列のまま） |
+| RFC 準拠の UUID バイト表現 | ビッグエンディアン | ビッグエンディアン（バイト列のまま） |
+
+文字列表現（`ToString()`）は同じでも、`byte[]` に変換した瞬間に先頭3グループのバイト順が変わる。
+今回の `HostDI` の調査で見えたとおり、この一致したプロジェクトの中でも「`Id` を `BLOB` で保存した行」と
+「`TEXT` で保存した行」が混在しただけで型ハンドラーの自作が必要になった。もし将来 SQL Server（`uniqueidentifier` は
+.NET と同じリトルエンディアン格納）と PostgreSQL（`uuid` 型は RFC 準拠のビッグエンディアン格納）の間でバイト列を
+直接やり取りするような設計になった場合、同じ論理値でもバイト順の違いでソート順や比較結果がズレる落とし穴になるので
+注意（本プロジェクトでは文字列変換を経由しているため対象外）。
+
+なお `Guid.NewGuid()` が生成する値は、ビット構成上 RFC のバージョン4（ランダム生成）UUID と互換性がある。
 
 ---
 

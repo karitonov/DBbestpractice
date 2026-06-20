@@ -139,7 +139,7 @@
             ClientSize = new Size(800, 450);
             Controls.Add(tableLayoutPanel1);
             Name = "Form1";
-            Text = "DIContainer";
+            Text = "HostDI";
             Load += Form1_Load;
             tableLayoutPanel1.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)dgvProductsTable).EndInit();

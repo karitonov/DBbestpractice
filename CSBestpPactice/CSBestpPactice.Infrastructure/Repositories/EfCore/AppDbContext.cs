@@ -16,7 +16,6 @@ public sealed class AppDbContext : DbContext
         modelBuilder.Entity<Product>(entity =>
         {
             entity.HasKey(p => p.Id);
-            entity.Property(p => p.Id).HasConversion<string>();
             entity.Property(p => p.Name).IsRequired();
             entity.Property(p => p.UnitPrice).HasColumnType("TEXT");
         });
