@@ -6,6 +6,7 @@ using DapperRepo = CSBestpPactice.Infrastructure.Repositories.Dapper;
 using EfCore = CSBestpPactice.Infrastructure.Repositories.EfCore;
 using CSBestpPactice.Service;
 using Dapper;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using CSBestpPactice.Infrastructure.Repositories.AdoNet;
@@ -32,12 +33,23 @@ namespace App.WinForms.DIContainer
                 .AddJsonFile("appsettings.json", optional: false)
                 .Build();
 
+            var connectionString = configuration.GetConnectionString("SQLite")!;
+
             var services = new ServiceCollection();
+
             services.AddSingleton<IDbConnectionFactory>(_ =>
-                new SqliteConnectionFactory(configuration.GetConnectionString("SQLite")!));
+                new SqliteConnectionFactory(connectionString));
             services.AddSingleton<IDbSession>(sp =>
                 new DbSession(sp.GetRequiredService<IDbConnectionFactory>().CreateConnection()));
+
+            // Ado.NET, Dapper, EF Core repository registrations are mutually exclusive, choose one of them to register
+            //services.AddTransient<IProductRepository, AdoNet.ProductRepository>();
             services.AddTransient<IProductRepository, DapperRepo.ProductRepository>();
+            //services.AddDbContext<EfCore.AppDbContext>(
+            //    options => options.UseSqlite(connectionString),
+            //    ServiceLifetime.Singleton);
+            //services.AddTransient<IProductRepository, EfCore.ProductRepository>();
+
             services.AddTransient<IProductTableRepository, ProductTableRepository>();
             services.AddTransient<IProductService, ProductService>();
             services.AddTransient<IProductTableService, ProductTableService>();

@@ -31,6 +31,8 @@ namespace App.WinForms.ManualDI
 
             var factory = new SqliteConnectionFactory(connectionString);
             var session = new DbSession(factory.CreateConnection());
+
+            // Ado.NET, Dapper, EF Core repository registrations are mutually exclusive, choose one of them to register
             //var repository = new AdoNet.ProductRepository(session);
             //var repository = new DapperRepo.ProductRepository(factory);
             var options = new DbContextOptionsBuilder<EfCore.AppDbContext>()
@@ -38,6 +40,7 @@ namespace App.WinForms.ManualDI
                 .Options;
             var context = new EfCore.AppDbContext(options);
             var repository = new EfCore.ProductRepository(context);
+
             var tableRepository = new AdoNet.ProductTableRepository(session);
             var service = new ProductService(repository);
             var tableService = new ProductTableService(tableRepository);
